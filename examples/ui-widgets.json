@@ -1,0 +1,20 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Inline ui:* hints & custom widgets",
+  "description": "`ui:widget`, `ui:placeholder`, `ui:help`, `ui:disabled` and `ui:props` live on the schema node. The `epoch` widget is a custom component registered by the app; it stores a Unix timestamp but shows a date-time picker.",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "title": "Event title", "ui:placeholder": "e.g. Launch party" },
+    "startsAt": {
+      "type": "integer",
+      "title": "Starts at",
+      "ui:widget": "epoch",
+      "ui:help": "Stored as seconds since 1970-01-01T00:00:00Z."
+    },
+    "endsAt": { "type": "integer", "title": "Ends at", "ui:widget": "epoch" },
+    "description": { "type": "string", "title": "Description", "ui:widget": "textarea", "ui:props": { "rows": 6 } },
+    "visibility": { "type": "string", "title": "Visibility", "enum": ["public", "unlisted", "private"], "ui:widget": "radio" },
+    "createdBy": { "type": "string", "title": "Created by", "default": "you@example.com", "ui:disabled": true }
+  },
+  "required": ["title", "startsAt"]
+}

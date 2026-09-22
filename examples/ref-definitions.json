@@ -1,0 +1,31 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "$ref & definitions",
+  "description": "The same `address` definition is reused for two fields. `$defs` works as well as `definitions`.",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": { "type": "string", "title": "Street" },
+        "city": { "type": "string", "title": "City" },
+        "postalCode": { "type": "string", "title": "Postal code", "pattern": "^[A-Za-z0-9 -]{3,10}$" }
+      },
+      "required": ["street", "city"]
+    }
+  },
+  "$defs": {
+    "phone": { "type": "string", "title": "Phone", "pattern": "^\\+?[0-9 ]{6,15}$" }
+  },
+  "properties": {
+    "name": { "type": "string", "title": "Name" },
+    "phone": { "$ref": "#/$defs/phone" },
+    "homeAddress": { "$ref": "#/definitions/address", "title": "Home address" },
+    "shippingAddress": {
+      "$ref": "#/definitions/address",
+      "title": "Shipping address",
+      "description": "Sibling keywords next to $ref override the definition."
+    }
+  },
+  "required": ["name", "homeAddress"]
+}

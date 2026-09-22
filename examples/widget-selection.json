@@ -1,0 +1,67 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Widget selection",
+  "description": "Three ways to pick widgets without annotating every path. The uiSchema panel uses globs (`tags.*` for every array item, `**.postalCode` for both addresses); the demo's resolveWidget maps `format: epoch` to the epoch widget and `x-widget: inline-address` to a widget that renders an object on one row; `endsAt` shows the uiSchema panel overriding an inline `ui:widget`.",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": {
+          "type": "string",
+          "title": "Street"
+        },
+        "city": {
+          "type": "string",
+          "title": "City"
+        },
+        "postalCode": {
+          "type": "string",
+          "title": "Postal code",
+          "pattern": "^[A-Za-z0-9 -]{3,10}$"
+        }
+      },
+      "required": [
+        "street",
+        "city"
+      ]
+    }
+  },
+  "properties": {
+    "tags": {
+      "type": "array",
+      "title": "Tags",
+      "items": {
+        "type": "string",
+        "title": "Tag",
+        "minLength": 2
+      },
+      "minItems": 1
+    },
+    "home": {
+      "$ref": "#/definitions/address",
+      "title": "Home address",
+      "x-widget": "inline-address"
+    },
+    "work": {
+      "$ref": "#/definitions/address",
+      "title": "Work address"
+    },
+    "startsAt": {
+      "type": "integer",
+      "title": "Starts at",
+      "format": "epoch"
+    },
+    "endsAt": {
+      "type": "integer",
+      "title": "Ends at",
+      "format": "epoch",
+      "ui:widget": "number",
+      "ui:help": "Inline ui:widget says number; the uiSchema panel overrides it back to epoch."
+    }
+  },
+  "required": [
+    "tags",
+    "home"
+  ]
+}

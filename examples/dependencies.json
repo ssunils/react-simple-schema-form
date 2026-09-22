@@ -1,0 +1,23 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dependencies",
+  "description": "Property dependencies make other fields required; schema dependencies add whole sub-schemas. Fill in a value to see the effect.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "title": "Name" },
+    "creditCard": { "type": "string", "title": "Credit card number", "pattern": "^[0-9]{13,19}$" },
+    "billingAddress": { "type": "string", "title": "Billing address" },
+    "hasPet": { "type": "boolean", "title": "I have a pet" }
+  },
+  "required": ["name"],
+  "dependencies": {
+    "creditCard": ["billingAddress"],
+    "hasPet": {
+      "properties": {
+        "petName": { "type": "string", "title": "Pet name" },
+        "petKind": { "type": "string", "title": "Kind", "enum": ["cat", "dog", "other"] }
+      },
+      "required": ["petName"]
+    }
+  }
+}

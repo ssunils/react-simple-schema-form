@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Form Schema Demo</title>
+    <style>
+      :root { color-scheme: light dark; font-family: system-ui, sans-serif; }
+      body { margin: 0; padding: 2rem 1rem; }
+      main { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: 1fr 1fr; gap: 2rem; }
+      @media (max-width: 800px) { main { grid-template-columns: 1fr; } }
+      textarea.editor { width: 100%; min-height: 320px; font-family: ui-monospace, monospace; font-size: 0.85rem; margin-top: 0.5rem; }
+      textarea.editor--small { min-height: 120px; }
+      .epoch-widget { display: flex; flex-direction: column; gap: 0.25rem; }
+      .epoch-widget__raw { font-size: 0.8rem; opacity: 0.7; }
+      .inline-address__row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.5rem; }
+      .time-range { display: flex; align-items: center; gap: 0.4rem; }
+      .scheduler { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+      .scheduler__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem 1rem; width: 100%; padding: 0.75rem; border-left: 3px solid #2563eb33; }
+      .counter { display: flex; gap: 0.35rem; align-items: center; }
+      .counter .sf-input { width: 6rem; }
+      .inline-address__summary { margin: 0.25rem 0 0; font-size: 0.85rem; color: #dc2626; }
+      pre { background: rgba(127,127,127,0.12); padding: 1rem; border-radius: 6px; overflow: auto; font-size: 0.85rem; }
+      h3 { margin: 1.5rem 0 0.5rem; }
+      .bad { color: #dc2626; font-size: 0.85rem; }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/main.tsx"></script>
+  </body>
+</html>

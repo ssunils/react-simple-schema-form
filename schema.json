@@ -1,0 +1,142 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Form Schema",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": {
+          "type": "string",
+          "title": "Street"
+        },
+        "city": {
+          "type": "string",
+          "title": "City"
+        },
+        "postalCode": {
+          "type": "string",
+          "title": "Postal code",
+          "pattern": "^[A-Za-z0-9 -]{3,10}$"
+        }
+      },
+      "required": [
+        "street",
+        "city"
+      ]
+    }
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Age"
+    },
+    "schedule": {
+      "title": "Weekly schedule",
+      "type": "object",
+      "ui:widget": "scheduler",
+      "uiSchema": {
+        "monday": {
+          "ui:widget": "timePicker"
+        },
+        "tuesday": {
+          "ui:widget": "timePicker"
+        },
+        "wednesday": {
+          "ui:widget": "timePicker"
+        },
+        "thursday": {
+          "ui:widget": "timePicker"
+        },
+        "friday": {
+          "ui:widget": "timePicker"
+        }
+      },
+      "properties": {
+        "enabled": {
+          "title": "Enable schedule",
+          "description": "Turn on to set working hours. Days are only validated while enabled.",
+          "type": "boolean",
+          "default": false
+        },
+        "monday": {
+          "title": "Monday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "tuesday": {
+          "title": "Tuesday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "wednesday": {
+          "title": "Wednesday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "thursday": {
+          "title": "Thursday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "friday": {
+          "title": "Friday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "then": {
+        "required": [
+          "monday",
+          "tuesday"
+        ]
+      }
+    },
+    "bio": {
+      "type": "string",
+      "title": "Bio"
+    },
+    "role": {
+      "type": "string",
+      "title": "Role",
+      "enum": [
+        "Admin",
+        "Editor",
+        "Viewer"
+      ]
+    },
+    "address": {
+      "$ref": "#/definitions/address",
+      "title": "Address"
+    }
+  },
+  "required": [
+    "name",
+    "email"
+  ]
+}

@@ -1,0 +1,42 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "if / then / else",
+  "type": "object",
+  "properties": {
+    "country": { "type": "string", "title": "Country", "enum": ["US", "CA", "Other"] },
+    "postalCode": { "type": "string", "title": "Postal code" },
+    "subscribe": { "type": "boolean", "title": "Subscribe to newsletter" }
+  },
+  "required": ["country"],
+  "allOf": [
+    {
+      "if": { "properties": { "country": { "const": "US" } }, "required": ["country"] },
+      "then": {
+        "properties": {
+          "state": { "type": "string", "title": "State", "enum": ["CA", "NY", "TX", "WA"] },
+          "postalCode": { "title": "ZIP code", "pattern": "^[0-9]{5}(-[0-9]{4})?$" }
+        },
+        "required": ["state", "postalCode"]
+      },
+      "else": {
+        "if": { "properties": { "country": { "const": "CA" } }, "required": ["country"] },
+        "then": {
+          "properties": {
+            "province": { "type": "string", "title": "Province", "enum": ["BC", "ON", "QC"] },
+            "postalCode": { "pattern": "^[A-Za-z][0-9][A-Za-z] ?[0-9][A-Za-z][0-9]$" }
+          },
+          "required": ["province"]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "subscribe": { "const": true } }, "required": ["subscribe"] },
+      "then": {
+        "properties": {
+          "frequency": { "type": "string", "title": "Frequency", "enum": ["daily", "weekly", "monthly"] }
+        },
+        "required": ["frequency"]
+      }
+    }
+  ]
+}

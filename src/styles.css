@@ -1,0 +1,73 @@
+/* Default, minimal styling for react-simple-schema-form. Optional — all hooks are class-based. */
+.sf-form {
+  --sf-border: #cbd5e1;
+  --sf-border-focus: #2563eb;
+  --sf-error: #dc2626;
+  --sf-text-muted: #64748b;
+  --sf-radius: 6px;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  font: inherit;
+}
+.sf-title { margin: 0; font-size: 1.25rem; }
+.sf-field { display: flex; flex-direction: column; gap: 0.25rem; }
+.sf-field--inline { flex-direction: row; align-items: center; gap: 0.5rem; }
+.sf-label { font-weight: 600; }
+.sf-required { color: var(--sf-error); }
+.sf-description, .sf-help { margin: 0; font-size: 0.85rem; color: var(--sf-text-muted); }
+.sf-error { margin: 0; font-size: 0.85rem; color: var(--sf-error); }
+.sf-input, .sf-textarea, .sf-select {
+  font: inherit;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  background: transparent;
+  color: inherit;
+}
+.sf-input:focus, .sf-textarea:focus, .sf-select:focus {
+  outline: 2px solid var(--sf-border-focus);
+  outline-offset: 1px;
+}
+.sf-field--error .sf-input,
+.sf-field--error .sf-textarea,
+.sf-field--error .sf-select { border-color: var(--sf-error); }
+.sf-radio-group, .sf-checkbox-group { display: flex; flex-wrap: wrap; gap: 0.75rem; }
+.sf-radio, .sf-checkbox-option { display: inline-flex; align-items: center; gap: 0.35rem; }
+.sf-object, .sf-array {
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  padding: 0.75rem 1rem 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin: 0;
+}
+.sf-legend { font-weight: 600; padding: 0 0.35rem; }
+.sf-array-items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.75rem; }
+.sf-array-item { display: flex; gap: 0.5rem; align-items: flex-start; }
+.sf-array-item-body { flex: 1; min-width: 0; }
+.sf-array-item-actions { display: flex; gap: 0.25rem; padding-top: 1.6rem; }
+.sf-array-empty { margin: 0; color: var(--sf-text-muted); font-style: italic; }
+.sf-btn {
+  font: inherit;
+  padding: 0.45rem 0.9rem;
+  border: 1px solid var(--sf-border);
+  border-radius: var(--sf-radius);
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+.sf-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.sf-btn--icon { padding: 0.35rem 0.55rem; }
+.sf-btn--danger { color: var(--sf-error); }
+.sf-btn--add { align-self: flex-start; }
+.sf-btn--submit {
+  align-self: flex-start;
+  background: var(--sf-border-focus);
+  border-color: var(--sf-border-focus);
+  color: #fff;
+}
+.sf-combinator { display: flex; flex-direction: column; gap: 0.75rem; }
+.sf-combinator > .sf-object, .sf-combinator > .sf-array { border-style: dashed; }
+.sf-input:disabled, .sf-textarea:disabled, .sf-select:disabled { opacity: 0.6; cursor: not-allowed; }

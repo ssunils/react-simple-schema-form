@@ -1,0 +1,79 @@
+{
+  "name": "react-simple-schema-form",
+  "version": "0.1.0",
+  "description": "Generate React forms from JSON Schema: $ref, allOf/oneOf/anyOf, if/then/else, dependencies, custom widgets, zero dependencies.",
+  "author": "sunils",
+  "license": "MIT",
+  "keywords": [
+    "react",
+    "json-schema",
+    "form",
+    "form-generator",
+    "schema-form",
+    "jsonschema",
+    "validation",
+    "widgets",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/ssunils/react-simple-schema-form.git"
+  },
+  "homepage": "https://github.com/ssunils/react-simple-schema-form#readme",
+  "bugs": {
+    "url": "https://github.com/ssunils/react-simple-schema-form/issues"
+  },
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./styles.css": "./dist/styles.css"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "LICENSE"
+  ],
+  "sideEffects": false,
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "dev": "vite --config demo/vite.config.ts",
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "prepublishOnly": "npm run typecheck && npm test && npm run build",
+    "build:demo": "DEMO_BASE=/react-simple-schema-form/ vite build --config demo/vite.config.ts"
+  },
+  "peerDependencies": {
+    "react": ">=18",
+    "react-dom": ">=18"
+  },
+  "devDependencies": {
+    "@testing-library/jest-dom": "^6.6.3",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^26.6.2",
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "@vitejs/plugin-react": "^4.4.1",
+    "jsdom": "^26.1.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tsup": "^8.4.0",
+    "typescript": "^5.8.3",
+    "vite": "^6.3.5",
+    "vitest": "^3.1.3"
+  }
+}

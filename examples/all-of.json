@@ -1,0 +1,34 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "allOf composition",
+  "description": "An employee is a person plus job details. `properties` merge and `required` lists union.",
+  "definitions": {
+    "person": {
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string", "title": "First name" },
+        "lastName": { "type": "string", "title": "Last name" },
+        "email": { "type": "string", "format": "email", "title": "Email" }
+      },
+      "required": ["firstName", "lastName"]
+    },
+    "employment": {
+      "type": "object",
+      "properties": {
+        "department": { "type": "string", "title": "Department", "enum": ["Engineering", "Design", "Sales"] },
+        "startDate": { "type": "string", "format": "date", "title": "Start date" }
+      },
+      "required": ["department"]
+    }
+  },
+  "allOf": [
+    { "$ref": "#/definitions/person" },
+    { "$ref": "#/definitions/employment" },
+    {
+      "properties": {
+        "email": { "description": "Merged in from a third allOf part: description added, format kept." },
+        "manager": { "type": "boolean", "title": "Is a manager" }
+      }
+    }
+  ]
+}

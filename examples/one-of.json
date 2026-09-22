@@ -1,0 +1,69 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "oneOf / anyOf",
+  "type": "object",
+  "properties": {
+    "payment": {
+      "title": "Payment method",
+      "description": "A discriminated union: each branch fixes `method` with `const`, so changing the Method select inside a branch switches the branch.",
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "title": "Method", "enum": ["card", "bank", "invoice"] }
+      },
+      "required": ["method"],
+      "oneOf": [
+        {
+          "title": "Credit card",
+          "properties": {
+            "method": { "const": "card" },
+            "cardNumber": { "type": "string", "title": "Card number", "pattern": "^[0-9]{13,19}$" },
+            "expiry": { "type": "string", "title": "Expiry (MM/YY)", "pattern": "^(0[1-9]|1[0-2])\\/[0-9]{2}$" }
+          },
+          "required": ["cardNumber", "expiry"]
+        },
+        {
+          "title": "Bank transfer",
+          "properties": {
+            "method": { "const": "bank" },
+            "iban": { "type": "string", "title": "IBAN", "minLength": 15, "maxLength": 34 }
+          },
+          "required": ["iban"]
+        },
+        {
+          "title": "Invoice",
+          "properties": {
+            "method": { "const": "invoice" },
+            "poNumber": { "type": "string", "title": "PO number" }
+          }
+        }
+      ]
+    },
+    "contact": {
+      "title": "Preferred contact",
+      "description": "anyOf with structurally different branches: a bare string or an object.",
+      "anyOf": [
+        { "title": "Email address", "type": "string", "format": "email" },
+        {
+          "title": "Phone",
+          "type": "object",
+          "properties": {
+            "number": { "type": "string", "title": "Number" },
+            "smsOk": { "type": "boolean", "title": "SMS allowed" }
+          },
+          "required": ["number"]
+        }
+      ]
+    },
+    "priority": {
+      "title": "Priority",
+      "description": "A oneOf where every branch is a `const` is rendered as a labelled select.",
+      "type": "integer",
+      "oneOf": [
+        { "const": 1, "title": "Low" },
+        { "const": 2, "title": "Normal" },
+        { "const": 3, "title": "High" }
+      ]
+    }
+  },
+  "required": ["payment"]
+}
