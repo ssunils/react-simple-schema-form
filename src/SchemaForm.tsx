@@ -38,6 +38,24 @@ export interface SchemaFormProps<T = Record<string, unknown>> {
 
 let formCounter = 0;
 
+/**
+ * Render a form from a JSON Schema.
+ *
+ * @example
+ * ```tsx
+ * import { SchemaForm } from 'react-simple-schema-form';
+ * import 'react-simple-schema-form/styles.css';
+ *
+ * <SchemaForm
+ *   schema={{ type: 'object', properties: { email: { type: 'string', format: 'email' } }, required: ['email'] }}
+ *   uiSchema={{ email: { placeholder: 'you@example.com' } }}
+ *   onSubmit={(data) => save(data)}
+ * />
+ * ```
+ *
+ * Widget precedence: `uiSchema` (exact, then globs) → parent's nested `uiSchema`
+ * keyword → inline `ui:widget` → `resolveWidget` → built-in default.
+ */
 export function SchemaForm<T = Record<string, unknown>>({
   schema,
   uiSchema = {},

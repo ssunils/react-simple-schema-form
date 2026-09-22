@@ -1,0 +1,838 @@
+# react-simple-schema-form — full documentation for LLMs
+
+Generated 2026-09-22 from README.md, skills/react-simple-schema-form/SKILL.md and examples/*.json.
+
+---
+
+# README
+
+# react-simple-schema-form
+
+Generate React forms from [JSON Schema](https://json-schema.org/) (draft-07 subset). Zero runtime dependencies beyond React.
+
+**[Live demo →](https://ssunils.github.io/react-simple-schema-form/)** — pick an example, edit the schema and uiSchema, watch the form regenerate.
+
+```sh
+npm install react-simple-schema-form
+```
+
+```tsx
+import { SchemaForm } from 'react-simple-schema-form';
+import 'react-simple-schema-form/styles.css'; // optional default styles
+import schema from './schema.json';
+
+<SchemaForm
+  schema={schema}
+  uiSchema={{ bio: { widget: 'textarea' } }}
+  onSubmit={(data) => console.log(data)}
+/>
+```
+
+## Scripts
+
+| Command             | What it does                                  |
+| ------------------- | --------------------------------------------- |
+| `npm run dev`       | Vite playground at `demo/` — pick an example from `examples/`, edit the schema and uiSchema live |
+| `npm test`          | Vitest unit + rendering tests                 |
+| `npm run typecheck` | `tsc --noEmit`                                |
+| `npm run build`     | ESM + CJS + `.d.ts` + `styles.css` into `dist/` |
+| `npm run build:demo`| Static demo into `docs/` (served by GitHub Pages) |
+
+## Supported schema keywords
+
+| Type              | Keywords                                                                     | Default widget |
+| ----------------- | ---------------------------------------------------------------------------- | -------------- |
+| `string`          | `format` (email, uri/url, date, date-time, time, password, color), `minLength`, `maxLength`, `pattern`, `enum` | `text` / by format / `select` |
+| `number`/`integer`| `minimum`, `maximum`, `exclusiveMinimum`, `exclusiveMaximum`, `multipleOf`, `enum` | `number` / `select` |
+| `boolean`         |                                                                              | `checkbox`     |
+| `object`          | `properties`, `required`                                                     | fieldset (nested) |
+| `array`           | `items`, `minItems`, `maxItems`, `uniqueItems`                               | add/remove/reorder list; `checkboxes` when `items.enum` |
+| any               | `title`, `description`, `default`, `const`, `readOnly`, `enumNames`          |                |
+
+### Composition, references and conditionals
+
+| Keyword | Behaviour | Example |
+| ------- | --------- | ------- |
+| `$ref` | Local JSON pointers (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target. Circular chains throw; self-referencing properties stop default generation at the cycle. | [examples/ref-definitions.json](examples/ref-definitions.json) |
+| `allOf` | Parts are deep-merged: `properties` recursively, `required` unioned, later parts override scalars. | [examples/all-of.json](examples/all-of.json) |
+| `oneOf` / `anyOf` | Rendered as a branch selector plus the chosen branch. Keywords next to the combinator (shared `properties`, `required`) apply to every branch. If a branch has a `const` discriminator, changing that field switches the branch automatically. A combinator whose branches are all `const` becomes a labelled select. | [examples/one-of.json](examples/one-of.json) |
+| `if` / `then` / `else` | Evaluated against the current data on every change; `then`/`else` are merged in. Nest inside `allOf` for several independent conditions. | [examples/if-then-else.json](examples/if-then-else.json) |
+| `dependencies` | Property form (`{"a": ["b"]}`) adds `required`; schema form merges a sub-schema. `dependentRequired` / `dependentSchemas` (2019-09) work the same way. Only active when the trigger property is non-empty. | [examples/dependencies.json](examples/dependencies.json) |
+
+**Recipe — an optional section that is validated only once enabled.** Put the toggle *inside* the object as a boolean and hang the requirements off it with `if`/`then`. An optional object that nobody has touched is treated as absent (no errors); once the toggle is on the object is present and the `then` requirements apply. See `schedule` in [schema.json](schema.json) and the demo's [SchedulerWidget](demo/widgets/SchedulerWidget.tsx), which renders the toggle, hides the settings while off, and resets the object to `{ enabled: false }` on disable so half-entered values can never block submission:
+
+```jsonc
+"schedule": {
+  "type": "object",
+  "ui:widget": "scheduler",
+  "uiSchema": { "monday": { "ui:widget": "timePicker" }, "tuesday": { "ui:widget": "timePicker" } },
+  "properties": {
+    "enabled": { "type": "boolean", "title": "Enable schedule", "default": false },
+    "monday":  { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" },
+    "tuesday": { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" }
+  },
+  "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+  "then": { "required": ["monday", "tuesday"] }
+}
+```
+The `"required": ["enabled"]` inside `if` matters: without it an object with no `enabled` key at all would satisfy the condition.
+
+Validation follows the same resolution: for `oneOf`/`anyOf` the errors shown are those of the branch the data belongs to (matched on everything except `required`), so users get field-level messages rather than a bare "no match".
+
+Not supported: remote `$ref`s, `not`, `additionalProperties` as a schema, `patternProperties`, `contains`.
+
+### Choosing widgets
+
+Precedence, highest first:
+
+1. **`uiSchema` prop** — exact path, then globs from most to least specific
+2. **parent's nested `uiSchema` keyword** (see below) — folded onto the child during resolution
+3. **inline `ui:widget`** on the schema node
+4. **`resolveWidget` prop** — a rule function
+5. built-in default from `type` / `format` / `enum`
+
+The app's `uiSchema` always beats the schema, so a field can be restyled without editing a schema that may be shared or served by a backend.
+
+**Globs in `uiSchema` keys** cover arrays and reused `$ref`s without listing every path:
+
+```ts
+uiSchema={{
+  'tags.*':        { widget: 'tag' },       // every item of tags
+  '*.street':      { placeholder: '…' },    // street in any top-level object
+  '**.postalCode': { widget: 'postal' },    // postalCode at any depth
+}}
+```
+`*` matches one segment, `**` any number. When several keys match, the most specific wins per option (exact > more literal segments > `*` > `**`); options from different keys merge, so a glob can add `help` while an exact key sets `widget`.
+
+**`resolveWidget`** selects by rule and sees the fully resolved schema:
+
+```tsx
+const resolveWidget: ResolveWidget = ({ schema, path, defaultWidget }) => {
+  if (schema.format === 'epoch') return 'epoch';         // a registered name
+  if (schema['x-widget']) return schema['x-widget'];     // your own keyword
+  if (path.endsWith('.notes')) return NotesWidget;       // or a component directly
+  return undefined;                                      // fall through to defaults
+};
+<SchemaForm schema={schema} widgets={{ epoch: EpochWidget }} resolveWidget={resolveWidget} />
+```
+`defaultWidget` is what the library would pick on its own — `undefined` for objects and non-enum arrays, which otherwise render structurally.
+
+**Nested `uiSchema` keyword.** An object node can carry hints for its children keyed by property name (`items` for arrays), nesting as deep as needed. Entries accept `ui:*` or plain option names. They are folded onto the children during resolution and override the children's own inline `ui:*`, so a `$ref` site can restyle the definition it points at:
+
+```jsonc
+"schedule": {
+  "type": "object",
+  "ui:widget": "scheduler",                  // widget for the object itself
+  "uiSchema": {
+    "monday":  { "ui:widget": "timePicker" }, // hints for its children
+    "tuesday": { "widget": "timePicker" }     // plain names work too
+  },
+  "properties": { "monday": { "type": "string" }, "tuesday": { "type": "string" } }
+}
+```
+This is the shape of `schedule` in [schema.json](schema.json).
+
+**Unregistered names** don't break the form: the library warns once in the console and renders the built-in default for that field (structurally, for objects and arrays).
+
+**Widgets on object/array nodes.** Selecting a widget for an object or array replaces the default fieldset/list. The widget gets the whole value, and can render children itself with the exported `<Field>` (see [InlineAddressWidget](demo/widgets/InlineAddressWidget.tsx)). `props.errors` contains the errors of the node *and its descendants*, regardless of touched state, so such a widget can summarise what's wrong inside; `props.invalid` stays the "should show an error now" flag.
+
+### UI hints: `uiSchema` prop and inline `ui:*` keywords
+
+The same options can live in either place; the `uiSchema` prop wins when both are set.
+
+```jsonc
+// inline, in the schema itself
+{ "type": "integer", "title": "Starts at", "ui:widget": "epoch", "ui:help": "Unix seconds" }
+```
+```tsx
+// external, keyed by dot path
+<SchemaForm schema={schema} uiSchema={{ startsAt: { widget: 'epoch', help: 'Unix seconds' } }} />
+```
+
+Options: `widget`, `placeholder`, `help`, `disabled`, `props` (forwarded to the widget element; `props` objects from both sources merge). See [examples/ui-widgets.json](examples/ui-widgets.json) and [examples/widget-selection.json](examples/widget-selection.json).
+
+## `<SchemaForm>` props
+
+| Prop           | Type                                      | Notes |
+| -------------- | ----------------------------------------- | ----- |
+| `schema`       | `JSONSchema`                              | Required. |
+| `uiSchema`     | `Record<path, UiFieldOptions>`            | Keyed by dot path (`address.city`, `tags.0`). Options: `widget`, `placeholder`, `help`, `disabled`, `props`. |
+| `value`        | `T`                                       | Controlled data; pair with `onChange`. |
+| `defaultValue` | `Partial<T>`                              | Uncontrolled initial data, merged with schema `default`s. |
+| `onChange`     | `(data, errors) => void`                  | Fires on every edit with the fresh validation result. |
+| `onSubmit`     | `(data) => void`                          | Only called when there are no validation errors. |
+| `onError`      | `(errors) => void`                        | Called on submit when invalid; the first invalid field is focused. |
+| `widgets`      | `Record<string, Widget>`                  | Add or replace widgets by name. |
+| `resolveWidget`| `(ctx) => name \| Widget \| undefined`     | Rule-based widget selection; see *Choosing widgets*. |
+| `disabled` / `readOnly` | `boolean`                        | |
+| `id`           | `string`                                  | Id prefix; set it when rendering more than one form per page. |
+| `submitLabel`  | `string`                                  | Default `"Submit"`. |
+| `children`     | `ReactNode`                               | Replace the submit button; pass `null` to omit it. |
+
+Field errors are shown once a field is blurred, or for every field after a submit attempt.
+
+## Custom widgets
+
+A widget is a component receiving `WidgetProps<T>`. Register it under a name with the `widgets` prop, then reference that name from `ui:widget` or `uiSchema`. The demo's [EpochWidget](demo/widgets/EpochWidget.tsx) stores a Unix timestamp (`type: integer`) but renders a `datetime-local` picker:
+
+```tsx
+import { SchemaForm, type Widget } from 'react-simple-schema-form';
+
+const EpochWidget: Widget<number | undefined> = ({ id, value, onChange, onBlur, disabled }) => (
+  <input
+    type="datetime-local"
+    id={id}
+    disabled={disabled}
+    value={value === undefined ? '' : new Date(value * 1000).toISOString().slice(0, 16)}
+    onBlur={onBlur}
+    onChange={(e) => {
+      const ms = new Date(e.target.value).getTime();
+      onChange(Number.isNaN(ms) ? undefined : Math.floor(ms / 1000));
+    }}
+  />
+);
+
+<SchemaForm
+  schema={{ type: 'object', properties: { startsAt: { type: 'integer', 'ui:widget': 'epoch' } } }}
+  widgets={{ epoch: EpochWidget }}
+/>
+```
+
+Another example, overriding the number widget with a range slider:
+
+```tsx
+import type { Widget } from 'react-simple-schema-form';
+
+const Slider: Widget<number | undefined> = ({ id, value, onChange, onBlur, schema, disabled }) => (
+  <input
+    type="range"
+    id={id}
+    min={schema.minimum}
+    max={schema.maximum}
+    value={value ?? schema.minimum ?? 0}
+    disabled={disabled}
+    onBlur={onBlur}
+    onChange={(e) => onChange(Number(e.target.value))}
+  />
+);
+
+<SchemaForm schema={schema} widgets={{ slider: Slider }} uiSchema={{ age: { widget: 'slider' } }} />
+```
+
+Built-in widget names: `text`, `email`, `password`, `url`, `date`, `datetime`, `time`, `color`, `textarea`, `number`, `checkbox`, `select`, `radio`, `checkboxes`, `hidden`. Overriding one of these in `widgets` changes the default for every field that resolves to it.
+
+## Standalone helpers
+
+```ts
+import { validate, getDefaultFormData, resolveSchema, resolveOptions } from 'react-simple-schema-form';
+
+validate(schema, data);                              // FieldError[] — { path, keyword, message }
+getDefaultFormData(schema);                          // initial data from `default` / `minItems` / `const`
+resolveSchema(node, data, resolveOptions(root));     // flatten $ref/allOf/if/dependencies for this data
+```
+
+## For AI assistants and agents
+
+- **`llms.txt`** — [ssunils.github.io/react-simple-schema-form/llms.txt](https://ssunils.github.io/react-simple-schema-form/llms.txt) (index) and [`llms-full.txt`](https://ssunils.github.io/react-simple-schema-form/llms-full.txt) (README + skill + every example in one file). Paste either into a chat, or point a docs MCP at them.
+- **Agent skill** — [`skills/react-simple-schema-form/SKILL.md`](skills/react-simple-schema-form/SKILL.md) ships inside the npm package. Claude Code, Cursor and other Agent-Skills-compatible tools can load it from `node_modules/react-simple-schema-form/skills/`; or copy it into your project's `.claude/skills/` (or equivalent) so the agent knows the API, widget precedence and recipes without reading source.
+- **Context7** — the repo carries a [`context7.json`](context7.json) so `resolve-library-id react-simple-schema-form` returns focused docs.
+- Every export has JSDoc, so the shipped `.d.ts` explains itself in editors.
+
+## Styling
+
+All elements carry `sf-*` class names (`sf-form`, `sf-field`, `sf-field--error`, `sf-label`, `sf-input`, `sf-select`, `sf-error`, `sf-object`, `sf-array`, `sf-btn`, …). The shipped `styles.css` is a small, theme-agnostic default driven by CSS variables (`--sf-border`, `--sf-border-focus`, `--sf-error`, `--sf-radius`); skip the import to bring your own.
+
+
+---
+
+# Agent skill
+
+
+# react-simple-schema-form
+
+Generates a React form from a JSON Schema (draft-07 subset). Zero runtime dependencies beyond React 18+.
+Package: `react-simple-schema-form` · Repo: https://github.com/ssunils/react-simple-schema-form · Demo: https://ssunils.github.io/react-simple-schema-form/
+
+## Install and minimal use
+
+```sh
+npm install react-simple-schema-form
+```
+
+```tsx
+import { SchemaForm } from 'react-simple-schema-form';
+import 'react-simple-schema-form/styles.css'; // optional default styles
+
+<SchemaForm
+  schema={schema}                       // JSONSchema object
+  uiSchema={{ bio: { widget: 'textarea' } }}
+  onSubmit={(data) => save(data)}       // only called when valid
+  onError={(errors) => {}}              // called on submit when invalid
+  onChange={(data, errors) => {}}       // every edit, with fresh validation
+/>
+```
+
+`value` + `onChange` makes it controlled; `defaultValue` seeds an uncontrolled form (merged with schema `default`s).
+Errors are shown per field after blur, or for every field after a submit attempt. First invalid field is focused on submit.
+
+## What the schema can contain
+
+- Types: `string` (formats email, uri/url, date, date-time, time, password, color), `number`/`integer`, `boolean`, `object`, `array`, `enum`, `const`, `enumNames`.
+- Constraints: `required`, `minLength`/`maxLength`/`pattern`, `minimum`/`maximum`/`exclusive*`/`multipleOf`, `minItems`/`maxItems`/`uniqueItems`, `default`, `readOnly`, `title`, `description`.
+- `$ref` — local pointers only (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target.
+- `allOf` — deep-merged (properties recursively, required unioned).
+- `oneOf` / `anyOf` — rendered as a branch selector + chosen branch. If a branch has a `const` discriminator, changing that field switches branches. All-`const` branches become a labelled select.
+- `if` / `then` / `else` — re-evaluated against the live data on every change. Put several conditions inside `allOf`.
+- `dependencies` (draft-07), `dependentRequired` / `dependentSchemas`.
+- NOT supported: remote `$ref`, `not`, `additionalProperties` as a schema, `patternProperties`, `contains`.
+
+## Choosing widgets (precedence, highest first)
+
+1. `uiSchema` prop, keyed by dot path; keys may be globs: `tags.*` (every item), `*.street`, `**.postalCode` (any depth). Most specific wins per option.
+2. Parent node's nested `uiSchema` keyword, keyed by child property name (`items` for arrays).
+3. Inline `ui:widget` / `ui:placeholder` / `ui:help` / `ui:disabled` / `ui:props` on the schema node.
+4. `resolveWidget` prop: `({ schema, path, defaultWidget }) => name | Component | undefined`.
+5. Built-in default by type/format/enum.
+
+Built-in widget names: `text email password url date datetime time color textarea number checkbox select radio checkboxes hidden`.
+An unregistered name warns once and falls back to the default (never throws).
+
+## Custom widgets
+
+```tsx
+import type { Widget } from 'react-simple-schema-form';
+
+const EpochWidget: Widget<number | undefined> = ({ id, value, onChange, onBlur, required, disabled, invalid, options, schema, errors }) => (
+  <input type="datetime-local" id={id} required={required} disabled={disabled} aria-invalid={invalid || undefined}
+    value={value === undefined ? '' : new Date(value * 1000).toISOString().slice(0, 16)}
+    onBlur={onBlur}
+    onChange={(e) => { const ms = new Date(e.target.value).getTime(); onChange(Number.isNaN(ms) ? undefined : Math.floor(ms / 1000)); }}
+    {...options.props} />
+);
+
+<SchemaForm schema={schema} widgets={{ epoch: EpochWidget }} uiSchema={{ startsAt: { widget: 'epoch' } }} />
+```
+
+Rules for widget authors:
+- `onChange(undefined)` for "empty"; never `''` for non-strings.
+- Forward `required`, `disabled`, `readOnly`, `onBlur`, `aria-invalid`, and spread `options.props`.
+- A widget on an **object/array** node replaces the fieldset/list; it receives the whole value and can render children with the exported `<Field schema={schema.properties[key]} path={`${path}.${key}`} required={...} />`. `props.errors` holds the node's and descendants' errors.
+- `useFormContext()` gives `data`, `setValue(path, value)`, `touch(path)`, `rootSchema` for cross-field behaviour.
+
+## Recipes
+
+**Optional section validated only when enabled.** Toggle is a real boolean inside the object; requirements hang off it.
+```jsonc
+"schedule": {
+  "type": "object",
+  "properties": { "enabled": { "type": "boolean", "default": false }, "monday": { "type": "string" } },
+  "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
+  "then": { "required": ["monday"] }
+}
+```
+`"required": ["enabled"]` inside `if` is essential — without it, an object with no `enabled` key satisfies the condition.
+An optional object whose values are all empty is treated as absent (no errors). A required object is always validated.
+
+**Discriminated union.**
+```jsonc
+{ "type": "object", "properties": { "method": { "type": "string", "enum": ["card", "bank"] } }, "required": ["method"],
+  "oneOf": [
+    { "title": "Card", "properties": { "method": { "const": "card" }, "number": { "type": "string" } }, "required": ["number"] },
+    { "title": "Bank", "properties": { "method": { "const": "bank" }, "iban":   { "type": "string" } }, "required": ["iban"] }
+  ] }
+```
+
+**Reuse a definition and restyle it at the reference site.**
+```jsonc
+"home": { "$ref": "#/definitions/address", "title": "Home", "uiSchema": { "street": { "widget": "textarea" } } }
+```
+
+## Standalone helpers
+
+```ts
+import { validate, getDefaultFormData, resolveSchema, resolveOptions } from 'react-simple-schema-form';
+validate(schema, data)                            // FieldError[] { path, keyword, message }
+getDefaultFormData(schema)                        // initial data from default/const/minItems
+resolveSchema(node, data, resolveOptions(root))   // flatten $ref/allOf/if/dependencies for this data
+```
+
+## Gotchas
+
+- Field paths are dot-separated (`address.street`, `tags.0`); error `path`s use the same form.
+- Numbers are stored as numbers; an `integer` schema renders `step=1`.
+- `default` inside a `then` branch is not applied when the branch activates mid-edit (defaults are computed at mount).
+- Styles are opt-in (`styles.css`); every element has an `sf-*` class and the palette is CSS variables (`--sf-border`, `--sf-border-focus`, `--sf-error`, `--sf-radius`).
+- Multiple forms on one page: pass distinct `id` props so generated element ids don't collide.
+
+
+---
+
+# Example schemas
+
+# schema.json (the demo default)
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Form Schema",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": {
+          "type": "string",
+          "title": "Street"
+        },
+        "city": {
+          "type": "string",
+          "title": "City"
+        },
+        "postalCode": {
+          "type": "string",
+          "title": "Postal code",
+          "pattern": "^[A-Za-z0-9 -]{3,10}$"
+        }
+      },
+      "required": [
+        "street",
+        "city"
+      ]
+    }
+  },
+  "properties": {
+    "name": {
+      "type": "string",
+      "title": "Name"
+    },
+    "email": {
+      "type": "string",
+      "format": "email",
+      "title": "Email"
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "title": "Age"
+    },
+    "schedule": {
+      "title": "Weekly schedule",
+      "type": "object",
+      "ui:widget": "scheduler",
+      "uiSchema": {
+        "monday": {
+          "ui:widget": "timePicker"
+        },
+        "tuesday": {
+          "ui:widget": "timePicker"
+        },
+        "wednesday": {
+          "ui:widget": "timePicker"
+        },
+        "thursday": {
+          "ui:widget": "timePicker"
+        },
+        "friday": {
+          "ui:widget": "timePicker"
+        }
+      },
+      "properties": {
+        "enabled": {
+          "title": "Enable schedule",
+          "description": "Turn on to set working hours. Days are only validated while enabled.",
+          "type": "boolean",
+          "default": false
+        },
+        "monday": {
+          "title": "Monday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "tuesday": {
+          "title": "Tuesday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "wednesday": {
+          "title": "Wednesday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "thursday": {
+          "title": "Thursday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        },
+        "friday": {
+          "title": "Friday",
+          "type": "string",
+          "description": "Time range as HH:MM-HH:MM",
+          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "then": {
+        "required": [
+          "monday",
+          "tuesday"
+        ]
+      }
+    },
+    "bio": {
+      "type": "string",
+      "title": "Bio"
+    },
+    "role": {
+      "type": "string",
+      "title": "Role",
+      "enum": [
+        "Admin",
+        "Editor",
+        "Viewer"
+      ]
+    },
+    "address": {
+      "$ref": "#/definitions/address",
+      "title": "Address"
+    }
+  },
+  "required": [
+    "name",
+    "email"
+  ]
+}
+```
+
+## examples/all-of.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "allOf composition",
+  "description": "An employee is a person plus job details. `properties` merge and `required` lists union.",
+  "definitions": {
+    "person": {
+      "type": "object",
+      "properties": {
+        "firstName": { "type": "string", "title": "First name" },
+        "lastName": { "type": "string", "title": "Last name" },
+        "email": { "type": "string", "format": "email", "title": "Email" }
+      },
+      "required": ["firstName", "lastName"]
+    },
+    "employment": {
+      "type": "object",
+      "properties": {
+        "department": { "type": "string", "title": "Department", "enum": ["Engineering", "Design", "Sales"] },
+        "startDate": { "type": "string", "format": "date", "title": "Start date" }
+      },
+      "required": ["department"]
+    }
+  },
+  "allOf": [
+    { "$ref": "#/definitions/person" },
+    { "$ref": "#/definitions/employment" },
+    {
+      "properties": {
+        "email": { "description": "Merged in from a third allOf part: description added, format kept." },
+        "manager": { "type": "boolean", "title": "Is a manager" }
+      }
+    }
+  ]
+}
+```
+
+## examples/dependencies.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "dependencies",
+  "description": "Property dependencies make other fields required; schema dependencies add whole sub-schemas. Fill in a value to see the effect.",
+  "type": "object",
+  "properties": {
+    "name": { "type": "string", "title": "Name" },
+    "creditCard": { "type": "string", "title": "Credit card number", "pattern": "^[0-9]{13,19}$" },
+    "billingAddress": { "type": "string", "title": "Billing address" },
+    "hasPet": { "type": "boolean", "title": "I have a pet" }
+  },
+  "required": ["name"],
+  "dependencies": {
+    "creditCard": ["billingAddress"],
+    "hasPet": {
+      "properties": {
+        "petName": { "type": "string", "title": "Pet name" },
+        "petKind": { "type": "string", "title": "Kind", "enum": ["cat", "dog", "other"] }
+      },
+      "required": ["petName"]
+    }
+  }
+}
+```
+
+## examples/if-then-else.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "if / then / else",
+  "type": "object",
+  "properties": {
+    "country": { "type": "string", "title": "Country", "enum": ["US", "CA", "Other"] },
+    "postalCode": { "type": "string", "title": "Postal code" },
+    "subscribe": { "type": "boolean", "title": "Subscribe to newsletter" }
+  },
+  "required": ["country"],
+  "allOf": [
+    {
+      "if": { "properties": { "country": { "const": "US" } }, "required": ["country"] },
+      "then": {
+        "properties": {
+          "state": { "type": "string", "title": "State", "enum": ["CA", "NY", "TX", "WA"] },
+          "postalCode": { "title": "ZIP code", "pattern": "^[0-9]{5}(-[0-9]{4})?$" }
+        },
+        "required": ["state", "postalCode"]
+      },
+      "else": {
+        "if": { "properties": { "country": { "const": "CA" } }, "required": ["country"] },
+        "then": {
+          "properties": {
+            "province": { "type": "string", "title": "Province", "enum": ["BC", "ON", "QC"] },
+            "postalCode": { "pattern": "^[A-Za-z][0-9][A-Za-z] ?[0-9][A-Za-z][0-9]$" }
+          },
+          "required": ["province"]
+        }
+      }
+    },
+    {
+      "if": { "properties": { "subscribe": { "const": true } }, "required": ["subscribe"] },
+      "then": {
+        "properties": {
+          "frequency": { "type": "string", "title": "Frequency", "enum": ["daily", "weekly", "monthly"] }
+        },
+        "required": ["frequency"]
+      }
+    }
+  ]
+}
+```
+
+## examples/one-of.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "oneOf / anyOf",
+  "type": "object",
+  "properties": {
+    "payment": {
+      "title": "Payment method",
+      "description": "A discriminated union: each branch fixes `method` with `const`, so changing the Method select inside a branch switches the branch.",
+      "type": "object",
+      "properties": {
+        "method": { "type": "string", "title": "Method", "enum": ["card", "bank", "invoice"] }
+      },
+      "required": ["method"],
+      "oneOf": [
+        {
+          "title": "Credit card",
+          "properties": {
+            "method": { "const": "card" },
+            "cardNumber": { "type": "string", "title": "Card number", "pattern": "^[0-9]{13,19}$" },
+            "expiry": { "type": "string", "title": "Expiry (MM/YY)", "pattern": "^(0[1-9]|1[0-2])\\/[0-9]{2}$" }
+          },
+          "required": ["cardNumber", "expiry"]
+        },
+        {
+          "title": "Bank transfer",
+          "properties": {
+            "method": { "const": "bank" },
+            "iban": { "type": "string", "title": "IBAN", "minLength": 15, "maxLength": 34 }
+          },
+          "required": ["iban"]
+        },
+        {
+          "title": "Invoice",
+          "properties": {
+            "method": { "const": "invoice" },
+            "poNumber": { "type": "string", "title": "PO number" }
+          }
+        }
+      ]
+    },
+    "contact": {
+      "title": "Preferred contact",
+      "description": "anyOf with structurally different branches: a bare string or an object.",
+      "anyOf": [
+        { "title": "Email address", "type": "string", "format": "email" },
+        {
+          "title": "Phone",
+          "type": "object",
+          "properties": {
+            "number": { "type": "string", "title": "Number" },
+            "smsOk": { "type": "boolean", "title": "SMS allowed" }
+          },
+          "required": ["number"]
+        }
+      ]
+    },
+    "priority": {
+      "title": "Priority",
+      "description": "A oneOf where every branch is a `const` is rendered as a labelled select.",
+      "type": "integer",
+      "oneOf": [
+        { "const": 1, "title": "Low" },
+        { "const": 2, "title": "Normal" },
+        { "const": 3, "title": "High" }
+      ]
+    }
+  },
+  "required": ["payment"]
+}
+```
+
+## examples/ref-definitions.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "$ref & definitions",
+  "description": "The same `address` definition is reused for two fields. `$defs` works as well as `definitions`.",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": { "type": "string", "title": "Street" },
+        "city": { "type": "string", "title": "City" },
+        "postalCode": { "type": "string", "title": "Postal code", "pattern": "^[A-Za-z0-9 -]{3,10}$" }
+      },
+      "required": ["street", "city"]
+    }
+  },
+  "$defs": {
+    "phone": { "type": "string", "title": "Phone", "pattern": "^\\+?[0-9 ]{6,15}$" }
+  },
+  "properties": {
+    "name": { "type": "string", "title": "Name" },
+    "phone": { "$ref": "#/$defs/phone" },
+    "homeAddress": { "$ref": "#/definitions/address", "title": "Home address" },
+    "shippingAddress": {
+      "$ref": "#/definitions/address",
+      "title": "Shipping address",
+      "description": "Sibling keywords next to $ref override the definition."
+    }
+  },
+  "required": ["name", "homeAddress"]
+}
+```
+
+## examples/ui-widgets.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Inline ui:* hints & custom widgets",
+  "description": "`ui:widget`, `ui:placeholder`, `ui:help`, `ui:disabled` and `ui:props` live on the schema node. The `epoch` widget is a custom component registered by the app; it stores a Unix timestamp but shows a date-time picker.",
+  "type": "object",
+  "properties": {
+    "title": { "type": "string", "title": "Event title", "ui:placeholder": "e.g. Launch party" },
+    "startsAt": {
+      "type": "integer",
+      "title": "Starts at",
+      "ui:widget": "epoch",
+      "ui:help": "Stored as seconds since 1970-01-01T00:00:00Z."
+    },
+    "endsAt": { "type": "integer", "title": "Ends at", "ui:widget": "epoch" },
+    "description": { "type": "string", "title": "Description", "ui:widget": "textarea", "ui:props": { "rows": 6 } },
+    "visibility": { "type": "string", "title": "Visibility", "enum": ["public", "unlisted", "private"], "ui:widget": "radio" },
+    "createdBy": { "type": "string", "title": "Created by", "default": "you@example.com", "ui:disabled": true }
+  },
+  "required": ["title", "startsAt"]
+}
+```
+
+## examples/widget-selection.json
+
+```json
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Widget selection",
+  "description": "Three ways to pick widgets without annotating every path. The uiSchema panel uses globs (`tags.*` for every array item, `**.postalCode` for both addresses); the demo's resolveWidget maps `format: epoch` to the epoch widget and `x-widget: inline-address` to a widget that renders an object on one row; `endsAt` shows the uiSchema panel overriding an inline `ui:widget`.",
+  "type": "object",
+  "definitions": {
+    "address": {
+      "type": "object",
+      "properties": {
+        "street": {
+          "type": "string",
+          "title": "Street"
+        },
+        "city": {
+          "type": "string",
+          "title": "City"
+        },
+        "postalCode": {
+          "type": "string",
+          "title": "Postal code",
+          "pattern": "^[A-Za-z0-9 -]{3,10}$"
+        }
+      },
+      "required": [
+        "street",
+        "city"
+      ]
+    }
+  },
+  "properties": {
+    "tags": {
+      "type": "array",
+      "title": "Tags",
+      "items": {
+        "type": "string",
+        "title": "Tag",
+        "minLength": 2
+      },
+      "minItems": 1
+    },
+    "home": {
+      "$ref": "#/definitions/address",
+      "title": "Home address",
+      "x-widget": "inline-address"
+    },
+    "work": {
+      "$ref": "#/definitions/address",
+      "title": "Work address"
+    },
+    "startsAt": {
+      "type": "integer",
+      "title": "Starts at",
+      "format": "epoch"
+    },
+    "endsAt": {
+      "type": "integer",
+      "title": "Ends at",
+      "format": "epoch",
+      "ui:widget": "number",
+      "ui:help": "Inline ui:widget says number; the uiSchema panel overrides it back to epoch."
+    }
+  },
+  "required": [
+    "tags",
+    "home"
+  ]
+}
+```

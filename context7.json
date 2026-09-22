@@ -1,0 +1,14 @@
+{
+  "$schema": "https://context7.com/schema/context7.json",
+  "projectTitle": "react-simple-schema-form",
+  "description": "Generate React forms from JSON Schema: $ref, allOf/oneOf/anyOf, if/then/else, dependencies, custom widgets, zero dependencies.",
+  "folders": ["skills", "examples"],
+  "excludeFolders": ["node_modules", "dist", "docs", "demo", "src/__tests__"],
+  "excludeFiles": ["package-lock.json"],
+  "rules": [
+    "Import SchemaForm from 'react-simple-schema-form'; styles are optional via 'react-simple-schema-form/styles.css'.",
+    "Widget precedence: uiSchema prop (exact, then globs) > parent's nested uiSchema keyword > inline ui:widget > resolveWidget prop > built-in default.",
+    "Inside an if condition, always include required: [key] alongside properties.key.const, otherwise a missing key satisfies the condition.",
+    "Custom widgets call onChange(undefined) for empty and must forward required, disabled, onBlur and spread options.props."
+  ]
+}

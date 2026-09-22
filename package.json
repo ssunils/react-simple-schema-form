@@ -1,6 +1,6 @@
 {
   "name": "react-simple-schema-form",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "Generate React forms from JSON Schema: $ref, allOf/oneOf/anyOf, if/then/else, dependencies, custom widgets, zero dependencies.",
   "author": "sunils",
   "license": "MIT",
@@ -13,7 +13,9 @@
     "jsonschema",
     "validation",
     "widgets",
-    "typescript"
+    "typescript",
+    "llms-txt",
+    "agent-skill"
   ],
   "repository": {
     "type": "git",
@@ -37,6 +39,7 @@
   },
   "files": [
     "dist",
+    "skills",
     "README.md",
     "LICENSE"
   ],
@@ -54,7 +57,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "prepublishOnly": "npm run typecheck && npm test && npm run build",
-    "build:demo": "DEMO_BASE=/react-simple-schema-form/ vite build --config demo/vite.config.ts"
+    "build:demo": "npm run build:llms && DEMO_BASE=/react-simple-schema-form/ vite build --config demo/vite.config.ts",
+    "build:llms": "node scripts/build-llms.mjs"
   },
   "peerDependencies": {
     "react": ">=18",

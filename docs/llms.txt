@@ -1,0 +1,21 @@
+# react-simple-schema-form
+
+> Generate React forms from JSON Schema (draft-07): $ref, allOf/oneOf/anyOf, if/then/else, dependencies, custom widgets via uiSchema. Zero runtime dependencies beyond React 18+. MIT.
+
+- npm: https://www.npmjs.com/package/react-simple-schema-form
+- Source: https://github.com/ssunils/react-simple-schema-form
+- Live demo (edit schema + uiSchema, see the form regenerate): https://ssunils.github.io/react-simple-schema-form/
+
+## Docs
+
+- [Full documentation for LLMs](https://ssunils.github.io/react-simple-schema-form/llms-full.txt): README, agent skill, and every example schema in one file
+- [README](https://github.com/ssunils/react-simple-schema-form#readme): API, supported keywords, widget precedence, recipes
+- [Agent skill (SKILL.md)](https://github.com/ssunils/react-simple-schema-form/blob/main/skills/react-simple-schema-form/SKILL.md): condensed usage guide for coding agents; also shipped in the npm package under skills/
+- [Example schemas](https://github.com/ssunils/react-simple-schema-form/tree/main/examples): $ref, allOf, oneOf/anyOf, if/then/else, dependencies, ui:* hints, widget selection
+
+## Quick start
+
+```tsx
+import { SchemaForm } from 'react-simple-schema-form';
+<SchemaForm schema={schema} uiSchema={{ bio: { widget: 'textarea' } }} onSubmit={(data) => save(data)} />
+```

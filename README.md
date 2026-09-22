@@ -223,6 +223,13 @@ getDefaultFormData(schema);                          // initial data from `defau
 resolveSchema(node, data, resolveOptions(root));     // flatten $ref/allOf/if/dependencies for this data
 ```
 
+## For AI assistants and agents
+
+- **`llms.txt`** — [ssunils.github.io/react-simple-schema-form/llms.txt](https://ssunils.github.io/react-simple-schema-form/llms.txt) (index) and [`llms-full.txt`](https://ssunils.github.io/react-simple-schema-form/llms-full.txt) (README + skill + every example in one file). Paste either into a chat, or point a docs MCP at them.
+- **Agent skill** — [`skills/react-simple-schema-form/SKILL.md`](skills/react-simple-schema-form/SKILL.md) ships inside the npm package. Claude Code, Cursor and other Agent-Skills-compatible tools can load it from `node_modules/react-simple-schema-form/skills/`; or copy it into your project's `.claude/skills/` (or equivalent) so the agent knows the API, widget precedence and recipes without reading source.
+- **Context7** — the repo carries a [`context7.json`](context7.json) so `resolve-library-id react-simple-schema-form` returns focused docs.
+- Every export has JSDoc, so the shipped `.d.ts` explains itself in editors.
+
 ## Styling
 
 All elements carry `sf-*` class names (`sf-form`, `sf-field`, `sf-field--error`, `sf-label`, `sf-input`, `sf-select`, `sf-error`, `sf-object`, `sf-array`, `sf-btn`, …). The shipped `styles.css` is a small, theme-agnostic default driven by CSS variables (`--sf-border`, `--sf-border-focus`, `--sf-error`, `--sf-radius`); skip the import to bring your own.
