@@ -1,7 +1,7 @@
 import type { FieldError, FieldPath, JSONSchema } from './types';
 import { joinPath } from './utils/path';
 import { inferType } from './utils/schema';
-import { combinatorBranches, resolveSchema, type ResolveOptions } from './resolve';
+import { combinatorBranches, resolveSchema, type Combinator, type ResolveOptions } from './resolve';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
@@ -100,7 +100,7 @@ function validateNode(
 
   const combinator = combinatorBranches(schema);
   if (combinator) {
-    validateCombinator(combinator.kind, combinator.branches, value, path, errors, root, required);
+    validateCombinator(combinator, value, path, errors, root, required);
     return;
   }
 
@@ -135,8 +135,7 @@ function validateNode(
 }
 
 function validateCombinator(
-  kind: 'oneOf' | 'anyOf',
-  branches: JSONSchema[],
+  { kind, branches, raw, validationOnly }: Combinator,
   value: unknown,
   path: FieldPath,
   errors: FieldError[],
@@ -149,6 +148,34 @@ function validateCombinator(
     return branchErrors;
   });
   const passing = results.filter((r) => r.length === 0).length;
+
+  if (validationOnly && (passing === 0 || (kind === 'oneOf' && passing > 1))) {
+    // Constraint-only branches differ solely in which keys they require. Find the
+    // branches whose presence rule the data already satisfies: their remaining
+    // errors are the real ones. If none is satisfied (or, for oneOf, more than
+    // one), the rule itself is the error — one message on the node naming the
+    // fields to choose between.
+    const obj = value !== null && typeof value === 'object' ? (value as Record<string, unknown>) : {};
+    const satisfied = raw
+      .map((b, i) => ((b.required ?? []).every((key) => !isPrimitiveEmpty(obj[key])) ? i : -1))
+      .filter((i) => i >= 0);
+
+    if (kind === 'anyOf' ? satisfied.length >= 1 : satisfied.length === 1) {
+      errors.push(...results[satisfied[0]!]!);
+      return;
+    }
+
+    // Errors every branch agrees on come from the node's own keywords: report once.
+    errors.push(...results[0]!.filter((e) => results.every((r) => r.some((o) => o.path === e.path && o.keyword === e.keyword))));
+    const choices = Array.from(new Set(raw.flatMap((b) => b.required ?? [])));
+    const names = choices.map((key) => branches[0]!.properties?.[key]?.title ?? key).join(', ');
+    if (satisfied.length > 1) {
+      push(errors, path, 'oneOf', `Choose only one of: ${names}`);
+    } else if (choices.length) {
+      push(errors, path, kind, `Provide ${kind === 'anyOf' ? 'at least one' : 'exactly one'} of: ${names}`);
+    }
+    return;
+  }
 
   if (passing === 0) {
     // Surface the errors of the branch the data most plausibly belongs to, so the

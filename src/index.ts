@@ -3,7 +3,8 @@ export type { SchemaFormProps } from './SchemaForm';
 
 export { validate, errorsByPath, matches, looselyMatches, resolveOptions } from './validate';
 export { getDefaultFormData, resolveType, inferType } from './utils/schema';
-export { resolveSchema, resolveRef, mergeSchemas, combinatorBranches, getUiOptions, matchesPath } from './resolve';
+export { resolveSchema, resolveRef, mergeSchemas, combinatorBranches, isConstraintOnly, getUiOptions, matchesPath } from './resolve';
+export type { Combinator } from './resolve';
 export { getAtPath, setAtPath } from './utils/path';
 
 export { Field } from './fields/Field';

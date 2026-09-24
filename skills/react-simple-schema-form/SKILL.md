@@ -29,6 +29,7 @@ import 'react-simple-schema-form/styles.css'; // optional default styles
 ```
 
 `value` + `onChange` makes it controlled; `defaultValue` seeds an uncontrolled form (merged with schema `default`s).
+`validate={(data, schemaErrors) => FieldError[]}` adds cross-field rules JSON Schema cannot express (end after start); they show under their `path` and block submit.
 Errors are shown per field after blur, or for every field after a submit attempt. First invalid field is focused on submit.
 
 ## What the schema can contain
@@ -37,7 +38,7 @@ Errors are shown per field after blur, or for every field after a submit attempt
 - Constraints: `required`, `minLength`/`maxLength`/`pattern`, `minimum`/`maximum`/`exclusive*`/`multipleOf`, `minItems`/`maxItems`/`uniqueItems`, `default`, `readOnly`, `title`, `description`.
 - `$ref` — local pointers only (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target.
 - `allOf` — deep-merged (properties recursively, required unioned).
-- `oneOf` / `anyOf` — rendered as a branch selector + chosen branch. If a branch has a `const` discriminator, changing that field switches branches. All-`const` branches become a labelled select.
+- `oneOf` / `anyOf` — rendered as a branch selector + chosen branch. If a branch has a `const` discriminator, changing that field switches branches. All-`const` branches become a labelled select. Branches with only `required` (no shape) are validation-only: no selector, one error "Provide at least one of: A, B" on the node — use this for "a or b must be set".
 - `if` / `then` / `else` — re-evaluated against the live data on every change. Put several conditions inside `allOf`.
 - `dependencies` (draft-07), `dependentRequired` / `dependentSchemas`.
 - NOT supported: remote `$ref`, `not`, `additionalProperties` as a schema, `patternProperties`, `contains`.

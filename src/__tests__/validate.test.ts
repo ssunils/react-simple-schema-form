@@ -5,7 +5,7 @@ import { setAtPath, getAtPath } from '../utils/path';
 import type { JSONSchema } from '../types';
 import userSchema from '../../schema.json';
 
-const schema = userSchema as JSONSchema;
+const schema = userSchema as unknown as JSONSchema;
 
 describe('validate', () => {
   it('reports missing required fields', () => {
@@ -36,14 +36,19 @@ describe('validate', () => {
     expect(validate(strict, { name: 'A', email: 'a@b.co' }).map((e) => e.path)).toEqual(['address']);
   });
 
-  it('requires scheduler settings only while the scheduler is enabled', () => {
+  it('requires exactly one scheduler mode, only while enabled', () => {
     const base = { name: 'A', email: 'a@b.co' };
     expect(validate(schema, { ...base })).toEqual([]);
     expect(validate(schema, { ...base, schedule: {} })).toEqual([]);
     expect(validate(schema, { ...base, schedule: { enabled: false } })).toEqual([]);
-    expect(validate(schema, { ...base, schedule: { enabled: true } }).map((e) => e.path).sort()).toEqual(['schedule.monday', 'schedule.tuesday']);
-    expect(validate(schema, { ...base, schedule: { enabled: true, monday: '9-5', tuesday: '10:00-16:00' } }).map((e) => `${e.path}:${e.keyword}`)).toEqual(['schedule.monday:pattern']);
-    expect(validate(schema, { ...base, schedule: { enabled: true, monday: '09:00-17:00', tuesday: '10:00-16:00' } })).toEqual([]);
+    expect(validate(schema, { ...base, schedule: { enabled: true } })).toEqual([
+      { path: 'schedule', keyword: 'oneOf', message: 'Provide exactly one of: Run at, Repeat every' },
+    ]);
+    expect(validate(schema, { ...base, schedule: { enabled: true, runAt: 1, intervalMs: 5000 } })).toEqual([
+      { path: 'schedule', keyword: 'oneOf', message: 'Choose only one of: Run at, Repeat every' },
+    ]);
+    expect(validate(schema, { ...base, schedule: { enabled: true, intervalMs: 500 } }).map((e) => `${e.path}:${e.keyword}`)).toEqual(['schedule.intervalMs:minimum']);
+    expect(validate(schema, { ...base, schedule: { enabled: true, runAt: 1 } })).toEqual([]);
   });
 
   it('validates the $ref address definition', () => {

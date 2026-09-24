@@ -2,7 +2,7 @@ import type { Widget } from 'react-simple-schema-form';
 
 /**
  * A start–end time range stored as one string, "HH:MM-HH:MM".
- * Referenced as `timePicker` from the schedule's nested uiSchema.
+ * Register as `timePicker` and reference it from `ui:widget` or a nested uiSchema.
  */
 export const TimePickerWidget: Widget<string | undefined> = ({ id, path, value, onChange, onBlur, required, disabled, readOnly, invalid, options }) => {
   const [start = '', end = ''] = (value ?? '').split('-');

@@ -47,27 +47,26 @@ import schema from './schema.json';
 | ------- | --------- | ------- |
 | `$ref` | Local JSON pointers (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target. Circular chains throw; self-referencing properties stop default generation at the cycle. | [examples/ref-definitions.json](examples/ref-definitions.json) |
 | `allOf` | Parts are deep-merged: `properties` recursively, `required` unioned, later parts override scalars. | [examples/all-of.json](examples/all-of.json) |
-| `oneOf` / `anyOf` | Rendered as a branch selector plus the chosen branch. Keywords next to the combinator (shared `properties`, `required`) apply to every branch. If a branch has a `const` discriminator, changing that field switches the branch automatically. A combinator whose branches are all `const` becomes a labelled select. | [examples/one-of.json](examples/one-of.json) |
+| `oneOf` / `anyOf` | Rendered as a branch selector plus the chosen branch. Keywords next to the combinator (shared `properties`, `required`) apply to every branch. If a branch has a `const` discriminator, changing that field switches the branch automatically. A combinator whose branches are all `const` becomes a labelled select. Branches that carry only constraints (e.g. `anyOf: [{ required: ["a"] }, { required: ["b"] }]`) are a *rule*, not a choice: no selector, and one error on the node — "Provide at least one of: A, B". | [examples/one-of.json](examples/one-of.json) |
 | `if` / `then` / `else` | Evaluated against the current data on every change; `then`/`else` are merged in. Nest inside `allOf` for several independent conditions. | [examples/if-then-else.json](examples/if-then-else.json) |
 | `dependencies` | Property form (`{"a": ["b"]}`) adds `required`; schema form merges a sub-schema. `dependentRequired` / `dependentSchemas` (2019-09) work the same way. Only active when the trigger property is non-empty. | [examples/dependencies.json](examples/dependencies.json) |
 
-**Recipe — an optional section that is validated only once enabled.** Put the toggle *inside* the object as a boolean and hang the requirements off it with `if`/`then`. An optional object that nobody has touched is treated as absent (no errors); once the toggle is on the object is present and the `then` requirements apply. See `schedule` in [schema.json](schema.json) and the demo's [SchedulerWidget](demo/widgets/SchedulerWidget.tsx), which renders the toggle, hides the settings while off, and resets the object to `{ enabled: false }` on disable so half-entered values can never block submission:
+**Recipe — an optional section that is validated only once enabled.** Put the toggle *inside* the object as a boolean and hang the requirements off it with `if`/`then`. An optional object that nobody has touched is treated as absent (no errors); once the toggle is on the object is present and the `then` requirements apply. See `schedule` in [schema.json](schema.json) and the demo's [SchedulerWidget](demo/widgets/SchedulerWidget.tsx), which renders the switch, offers an explicit *Run once / Repeat* choice that clears the other mode's fields, and resets the object on disable so half-entered values can never block submission:
 
 ```jsonc
 "schedule": {
   "type": "object",
   "ui:widget": "scheduler",
-  "uiSchema": { "monday": { "ui:widget": "timePicker" }, "tuesday": { "ui:widget": "timePicker" } },
   "properties": {
-    "enabled": { "type": "boolean", "title": "Enable schedule", "default": false },
-    "monday":  { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" },
-    "tuesday": { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" }
+    "enabled":    { "type": "boolean", "title": "Enable schedule", "default": false },
+    "runAt":      { "type": "integer", "title": "Run at" },
+    "intervalMs": { "type": "integer", "title": "Repeat every", "minimum": 1000 }
   },
   "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
-  "then": { "required": ["monday", "tuesday"] }
+  "then": { "oneOf": [{ "required": ["runAt"] }, { "required": ["intervalMs"] }] }
 }
 ```
-The `"required": ["enabled"]` inside `if` matters: without it an object with no `enabled` key at all would satisfy the condition.
+The `"required": ["enabled"]` inside `if` matters: without it an object with no `enabled` key at all would satisfy the condition. The `oneOf` of `required` is a *rule*, not a UI choice: both fields render, and setting both yields "Choose only one of: Run at, Repeat every". Rules that compare two values ("the window must end after it starts") go in the `validate` prop — see the demo's [rules.ts](demo/rules.ts).
 
 Validation follows the same resolution: for `oneOf`/`anyOf` the errors shown are those of the branch the data belongs to (matched on everything except `required`), so users get field-level messages rather than a bare "no match".
 
@@ -116,10 +115,10 @@ const resolveWidget: ResolveWidget = ({ schema, path, defaultWidget }) => {
   "type": "object",
   "ui:widget": "scheduler",                  // widget for the object itself
   "uiSchema": {
-    "monday":  { "ui:widget": "timePicker" }, // hints for its children
-    "tuesday": { "widget": "timePicker" }     // plain names work too
+    "runAt":   { "ui:widget": "epoch" },     // hints for its children
+    "maxRuns": { "widget": "counter" }       // plain names work too
   },
-  "properties": { "monday": { "type": "string" }, "tuesday": { "type": "string" } }
+  "properties": { "runAt": { "type": "integer" }, "maxRuns": { "type": "integer" } }
 }
 ```
 This is the shape of `schedule` in [schema.json](schema.json).
@@ -154,6 +153,7 @@ Options: `widget`, `placeholder`, `help`, `disabled`, `props` (forwarded to the 
 | `onChange`     | `(data, errors) => void`                  | Fires on every edit with the fresh validation result. |
 | `onSubmit`     | `(data) => void`                          | Only called when there are no validation errors. |
 | `onError`      | `(errors) => void`                        | Called on submit when invalid; the first invalid field is focused. |
+| `validate`     | `(data, schemaErrors) => FieldError[]`    | Cross-field rules the schema can't express (e.g. "end after start"); results show under their `path` and block submit. |
 | `widgets`      | `Record<string, Widget>`                  | Add or replace widgets by name. |
 | `resolveWidget`| `(ctx) => name \| Widget \| undefined`     | Rule-based widget selection; see *Choosing widgets*. |
 | `disabled` / `readOnly` | `boolean`                        | |

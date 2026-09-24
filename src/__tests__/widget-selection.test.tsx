@@ -72,6 +72,30 @@ const schema: JSONSchema = {
   },
 };
 
+describe('validation-only combinators in the form', () => {
+  it('renders both fields with no selector, and shows the rule on the object', async () => {
+    const user = userEvent.setup();
+    const onError = vi.fn();
+    const s: JSONSchema = {
+      type: 'object',
+      properties: {
+        contact: {
+          type: 'object', title: 'Contact',
+          properties: { email: { type: 'string', title: 'Email' }, phone: { type: 'string', title: 'Phone' } },
+          anyOf: [{ required: ['email'] }, { required: ['phone'] }],
+        },
+      },
+      required: ['contact'],
+    };
+    render(<SchemaForm schema={s} onError={onError} />);
+    expect(screen.queryByRole('combobox')).toBeNull();
+    expect(screen.getByLabelText(/^Email/)).toBeInTheDocument();
+    expect(screen.getByLabelText(/^Phone/)).toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Provide at least one of: Email, Phone');
+  });
+});
+
 describe('nested uiSchema keyword', () => {
   const Time: Widget<string | undefined> = ({ id, value, onChange }) => (
     <input id={id} data-testid="time" value={value ?? ''} onChange={(e) => onChange(e.target.value)} />

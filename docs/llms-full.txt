@@ -1,6 +1,6 @@
 # react-simple-schema-form — full documentation for LLMs
 
-Generated 2026-09-22 from README.md, skills/react-simple-schema-form/SKILL.md and examples/*.json.
+Generated 2026-09-24 from README.md, skills/react-simple-schema-form/SKILL.md and examples/*.json.
 
 ---
 
@@ -55,27 +55,26 @@ import schema from './schema.json';
 | ------- | --------- | ------- |
 | `$ref` | Local JSON pointers (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target. Circular chains throw; self-referencing properties stop default generation at the cycle. | [examples/ref-definitions.json](examples/ref-definitions.json) |
 | `allOf` | Parts are deep-merged: `properties` recursively, `required` unioned, later parts override scalars. | [examples/all-of.json](examples/all-of.json) |
-| `oneOf` / `anyOf` | Rendered as a branch selector plus the chosen branch. Keywords next to the combinator (shared `properties`, `required`) apply to every branch. If a branch has a `const` discriminator, changing that field switches the branch automatically. A combinator whose branches are all `const` becomes a labelled select. | [examples/one-of.json](examples/one-of.json) |
+| `oneOf` / `anyOf` | Rendered as a branch selector plus the chosen branch. Keywords next to the combinator (shared `properties`, `required`) apply to every branch. If a branch has a `const` discriminator, changing that field switches the branch automatically. A combinator whose branches are all `const` becomes a labelled select. Branches that carry only constraints (e.g. `anyOf: [{ required: ["a"] }, { required: ["b"] }]`) are a *rule*, not a choice: no selector, and one error on the node — "Provide at least one of: A, B". | [examples/one-of.json](examples/one-of.json) |
 | `if` / `then` / `else` | Evaluated against the current data on every change; `then`/`else` are merged in. Nest inside `allOf` for several independent conditions. | [examples/if-then-else.json](examples/if-then-else.json) |
 | `dependencies` | Property form (`{"a": ["b"]}`) adds `required`; schema form merges a sub-schema. `dependentRequired` / `dependentSchemas` (2019-09) work the same way. Only active when the trigger property is non-empty. | [examples/dependencies.json](examples/dependencies.json) |
 
-**Recipe — an optional section that is validated only once enabled.** Put the toggle *inside* the object as a boolean and hang the requirements off it with `if`/`then`. An optional object that nobody has touched is treated as absent (no errors); once the toggle is on the object is present and the `then` requirements apply. See `schedule` in [schema.json](schema.json) and the demo's [SchedulerWidget](demo/widgets/SchedulerWidget.tsx), which renders the toggle, hides the settings while off, and resets the object to `{ enabled: false }` on disable so half-entered values can never block submission:
+**Recipe — an optional section that is validated only once enabled.** Put the toggle *inside* the object as a boolean and hang the requirements off it with `if`/`then`. An optional object that nobody has touched is treated as absent (no errors); once the toggle is on the object is present and the `then` requirements apply. See `schedule` in [schema.json](schema.json) and the demo's [SchedulerWidget](demo/widgets/SchedulerWidget.tsx), which renders the switch, offers an explicit *Run once / Repeat* choice that clears the other mode's fields, and resets the object on disable so half-entered values can never block submission:
 
 ```jsonc
 "schedule": {
   "type": "object",
   "ui:widget": "scheduler",
-  "uiSchema": { "monday": { "ui:widget": "timePicker" }, "tuesday": { "ui:widget": "timePicker" } },
   "properties": {
-    "enabled": { "type": "boolean", "title": "Enable schedule", "default": false },
-    "monday":  { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" },
-    "tuesday": { "type": "string", "pattern": "^\\d{2}:\\d{2}-\\d{2}:\\d{2}$" }
+    "enabled":    { "type": "boolean", "title": "Enable schedule", "default": false },
+    "runAt":      { "type": "integer", "title": "Run at" },
+    "intervalMs": { "type": "integer", "title": "Repeat every", "minimum": 1000 }
   },
   "if":   { "properties": { "enabled": { "const": true } }, "required": ["enabled"] },
-  "then": { "required": ["monday", "tuesday"] }
+  "then": { "oneOf": [{ "required": ["runAt"] }, { "required": ["intervalMs"] }] }
 }
 ```
-The `"required": ["enabled"]` inside `if` matters: without it an object with no `enabled` key at all would satisfy the condition.
+The `"required": ["enabled"]` inside `if` matters: without it an object with no `enabled` key at all would satisfy the condition. The `oneOf` of `required` is a *rule*, not a UI choice: both fields render, and setting both yields "Choose only one of: Run at, Repeat every". Rules that compare two values ("the window must end after it starts") go in the `validate` prop — see the demo's [rules.ts](demo/rules.ts).
 
 Validation follows the same resolution: for `oneOf`/`anyOf` the errors shown are those of the branch the data belongs to (matched on everything except `required`), so users get field-level messages rather than a bare "no match".
 
@@ -124,10 +123,10 @@ const resolveWidget: ResolveWidget = ({ schema, path, defaultWidget }) => {
   "type": "object",
   "ui:widget": "scheduler",                  // widget for the object itself
   "uiSchema": {
-    "monday":  { "ui:widget": "timePicker" }, // hints for its children
-    "tuesday": { "widget": "timePicker" }     // plain names work too
+    "runAt":   { "ui:widget": "epoch" },     // hints for its children
+    "maxRuns": { "widget": "counter" }       // plain names work too
   },
-  "properties": { "monday": { "type": "string" }, "tuesday": { "type": "string" } }
+  "properties": { "runAt": { "type": "integer" }, "maxRuns": { "type": "integer" } }
 }
 ```
 This is the shape of `schedule` in [schema.json](schema.json).
@@ -162,6 +161,7 @@ Options: `widget`, `placeholder`, `help`, `disabled`, `props` (forwarded to the 
 | `onChange`     | `(data, errors) => void`                  | Fires on every edit with the fresh validation result. |
 | `onSubmit`     | `(data) => void`                          | Only called when there are no validation errors. |
 | `onError`      | `(errors) => void`                        | Called on submit when invalid; the first invalid field is focused. |
+| `validate`     | `(data, schemaErrors) => FieldError[]`    | Cross-field rules the schema can't express (e.g. "end after start"); results show under their `path` and block submit. |
 | `widgets`      | `Record<string, Widget>`                  | Add or replace widgets by name. |
 | `resolveWidget`| `(ctx) => name \| Widget \| undefined`     | Rule-based widget selection; see *Choosing widgets*. |
 | `disabled` / `readOnly` | `boolean`                        | |
@@ -273,6 +273,7 @@ import 'react-simple-schema-form/styles.css'; // optional default styles
 ```
 
 `value` + `onChange` makes it controlled; `defaultValue` seeds an uncontrolled form (merged with schema `default`s).
+`validate={(data, schemaErrors) => FieldError[]}` adds cross-field rules JSON Schema cannot express (end after start); they show under their `path` and block submit.
 Errors are shown per field after blur, or for every field after a submit attempt. First invalid field is focused on submit.
 
 ## What the schema can contain
@@ -281,7 +282,7 @@ Errors are shown per field after blur, or for every field after a submit attempt
 - Constraints: `required`, `minLength`/`maxLength`/`pattern`, `minimum`/`maximum`/`exclusive*`/`multipleOf`, `minItems`/`maxItems`/`uniqueItems`, `default`, `readOnly`, `title`, `description`.
 - `$ref` — local pointers only (`#/definitions/x`, `#/$defs/x`, `#`). Sibling keywords override the target.
 - `allOf` — deep-merged (properties recursively, required unioned).
-- `oneOf` / `anyOf` — rendered as a branch selector + chosen branch. If a branch has a `const` discriminator, changing that field switches branches. All-`const` branches become a labelled select.
+- `oneOf` / `anyOf` — rendered as a branch selector + chosen branch. If a branch has a `const` discriminator, changing that field switches branches. All-`const` branches become a labelled select. Branches with only `required` (no shape) are validation-only: no selector, one error "Provide at least one of: A, B" on the node — use this for "a or b must be set".
 - `if` / `then` / `else` — re-evaluated against the live data on every change. Put several conditions inside `allOf`.
 - `dependencies` (draft-07), `dependentRequired` / `dependentSchemas`.
 - NOT supported: remote `$ref`, `not`, `additionalProperties` as a schema, `patternProperties`, `contains`.
@@ -415,85 +416,10 @@ resolveSchema(node, data, resolveOptions(root))   // flatten $ref/allOf/if/depen
       "minimum": 0,
       "title": "Age"
     },
-    "schedule": {
-      "title": "Weekly schedule",
-      "type": "object",
-      "ui:widget": "scheduler",
-      "uiSchema": {
-        "monday": {
-          "ui:widget": "timePicker"
-        },
-        "tuesday": {
-          "ui:widget": "timePicker"
-        },
-        "wednesday": {
-          "ui:widget": "timePicker"
-        },
-        "thursday": {
-          "ui:widget": "timePicker"
-        },
-        "friday": {
-          "ui:widget": "timePicker"
-        }
-      },
-      "properties": {
-        "enabled": {
-          "title": "Enable schedule",
-          "description": "Turn on to set working hours. Days are only validated while enabled.",
-          "type": "boolean",
-          "default": false
-        },
-        "monday": {
-          "title": "Monday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "tuesday": {
-          "title": "Tuesday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "wednesday": {
-          "title": "Wednesday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "thursday": {
-          "title": "Thursday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "friday": {
-          "title": "Friday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        }
-      },
-      "if": {
-        "properties": {
-          "enabled": {
-            "const": true
-          }
-        },
-        "required": [
-          "enabled"
-        ]
-      },
-      "then": {
-        "required": [
-          "monday",
-          "tuesday"
-        ]
-      }
-    },
     "bio": {
       "type": "string",
-      "title": "Bio"
+      "title": "Bio",
+      "ui:widget": "textarea"
     },
     "role": {
       "type": "string",
@@ -507,6 +433,93 @@ resolveSchema(node, data, resolveOptions(root))   // flatten $ref/allOf/if/depen
     "address": {
       "$ref": "#/definitions/address",
       "title": "Address"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "type": "object",
+      "ui:widget": "scheduler",
+      "uiSchema": {
+        "maxRuns": {
+          "ui:widget": "counter"
+        },
+        "runAt": {
+          "ui:widget": "epoch"
+        },
+        "startsAt": {
+          "ui:widget": "epoch"
+        },
+        "endsAt": {
+          "ui:widget": "epoch"
+        }
+      },
+      "properties": {
+        "enabled": {
+          "title": "Enable schedule",
+          "type": "boolean",
+          "default": false
+        },
+        "runAt": {
+          "title": "Run at",
+          "description": "Unix timestamp (ms) for a single delayed run",
+          "type": "integer"
+        },
+        "intervalMs": {
+          "title": "Repeat every",
+          "description": "Interval between repeated runs, in milliseconds",
+          "type": "integer",
+          "minimum": 1000
+        },
+        "runImmediately": {
+          "title": "Run immediately",
+          "description": "Run once as soon as the schedule is saved, then repeat",
+          "type": "boolean"
+        },
+        "maxRuns": {
+          "title": "Max runs",
+          "description": "Stop after this many runs",
+          "type": "integer",
+          "minimum": 1
+        },
+        "startsAt": {
+          "title": "Not before",
+          "description": "Unix timestamp (ms) before which the task will not run",
+          "type": "integer"
+        },
+        "endsAt": {
+          "title": "Not after",
+          "description": "Unix timestamp (ms) after which the task will no longer run",
+          "type": "integer"
+        },
+        "continueOnError": {
+          "title": "Continue on error",
+          "description": "Keep the schedule running after a failed run",
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "runAt"
+            ]
+          },
+          {
+            "required": [
+              "intervalMs"
+            ]
+          }
+        ]
+      }
     }
   },
   "required": [
@@ -754,7 +767,7 @@ resolveSchema(node, data, resolveOptions(root))   // flatten $ref/allOf/if/depen
       "type": "integer",
       "title": "Starts at",
       "ui:widget": "epoch",
-      "ui:help": "Stored as seconds since 1970-01-01T00:00:00Z."
+      "ui:help": "Stored as milliseconds since 1970-01-01T00:00:00Z."
     },
     "endsAt": { "type": "integer", "title": "Ends at", "ui:widget": "epoch" },
     "description": { "type": "string", "title": "Description", "ui:widget": "textarea", "ui:props": { "rows": 6 } },

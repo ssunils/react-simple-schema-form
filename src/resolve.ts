@@ -170,15 +170,52 @@ export function resolveSchema(schema: JSONSchema, data: unknown, opts: ResolveOp
   return cleaned;
 }
 
+const CONSTRAINT_ONLY_KEYWORDS = new Set([
+  'required',
+  'dependencies',
+  'dependentRequired',
+  'minProperties',
+  'maxProperties',
+  'if',
+  'then',
+  'else',
+  'title',
+  'description',
+  '$comment',
+]);
+
 /**
- * The branches of a `oneOf`/`anyOf` node, each merged with the node's own keywords
- * so a branch sees e.g. the shared `properties` declared alongside the combinator.
+ * True when a combinator branch carries no shape of its own — only presence
+ * rules such as `{ "required": ["a"] }`. Such branches express a validation
+ * rule ("a or b must be set"), not a choice the user makes, so the form renders
+ * the node normally and only the validator looks at them.
  */
-export function combinatorBranches(schema: JSONSchema): { kind: 'oneOf' | 'anyOf'; branches: JSONSchema[] } | null {
+export function isConstraintOnly(branch: JSONSchema): boolean {
+  return Object.keys(branch).every((k) => CONSTRAINT_ONLY_KEYWORDS.has(k));
+}
+
+export interface Combinator {
+  kind: 'oneOf' | 'anyOf';
+  /** Each branch merged with the node's own keywords, so it sees the shared `properties`. */
+  branches: JSONSchema[];
+  /** The branches as written, before merging. */
+  raw: JSONSchema[];
+  /** True when every raw branch is constraint-only: no branch selector is rendered. */
+  validationOnly: boolean;
+}
+
+/** The branches of a `oneOf`/`anyOf` node, or null when the node has neither. */
+export function combinatorBranches(schema: JSONSchema): Combinator | null {
   const kind = schema.oneOf ? 'oneOf' : schema.anyOf ? 'anyOf' : null;
   if (!kind) return null;
   const { oneOf: _o, anyOf: _a, ...base } = schema;
-  return { kind, branches: (schema[kind] ?? []).map((b) => mergeSchemas(base, b)) };
+  const raw = schema[kind] ?? [];
+  return {
+    kind,
+    raw,
+    branches: raw.map((b) => mergeSchemas(base, b)),
+    validationOnly: raw.length > 0 && raw.every(isConstraintOnly),
+  };
 }
 
 /** Does a uiSchema key (possibly with `*` / `**` segments) match a field path? */

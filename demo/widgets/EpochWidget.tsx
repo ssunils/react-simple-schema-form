@@ -1,22 +1,18 @@
 import type { Widget } from 'react-simple-schema-form';
 
+type Unit = 's' | 'ms';
+
 /**
- * Example custom widget: the form data holds a Unix timestamp in seconds
- * (schema type `integer`), the user sees a native date-time picker.
+ * Unix-timestamp picker: `"ui:widget": "epoch"` on an integer field is all a
+ * schema needs. The user sees a native date-time input; the data holds the
+ * epoch in milliseconds. Set `"ui:props": { "unit": "s" }` for seconds.
  */
-export const EpochWidget: Widget<number | undefined> = ({
-  id,
-  path,
-  value,
-  onChange,
-  onBlur,
-  required,
-  disabled,
-  readOnly,
-  invalid,
-  options,
-}) => {
-  const local = value === undefined ? '' : toDatetimeLocal(value);
+export const EpochWidget: Widget<number | undefined> = ({ id, path, value, onChange, onBlur, required, disabled, readOnly, invalid, options }) => {
+  const { unit: unitProp, ...inputProps } = options.props ?? {};
+  const unit: Unit = unitProp === 's' ? 's' : 'ms';
+  const toMs = (epoch: number) => (unit === 'ms' ? epoch : epoch * 1000);
+  const fromMs = (ms: number) => (unit === 'ms' ? ms : Math.floor(ms / 1000));
+
   return (
     <div className="epoch-widget">
       <input
@@ -24,7 +20,7 @@ export const EpochWidget: Widget<number | undefined> = ({
         className="sf-input"
         id={id}
         name={path}
-        value={local}
+        value={value === undefined ? '' : toDatetimeLocal(toMs(value))}
         required={required}
         disabled={disabled}
         readOnly={readOnly}
@@ -33,17 +29,17 @@ export const EpochWidget: Widget<number | undefined> = ({
         onBlur={onBlur}
         onChange={(e) => {
           const ms = new Date(e.target.value).getTime();
-          onChange(Number.isNaN(ms) ? undefined : Math.floor(ms / 1000));
+          onChange(Number.isNaN(ms) ? undefined : fromMs(ms));
         }}
-        {...options.props}
+        {...inputProps}
       />
-      <code className="epoch-widget__raw">{value === undefined ? 'epoch: —' : `epoch: ${value}`}</code>
+      <code className="epoch-widget__raw">{value === undefined ? `epoch (${unit}): —` : `epoch (${unit}): ${value}`}</code>
     </div>
   );
 };
 
-function toDatetimeLocal(epochSeconds: number): string {
-  const d = new Date(epochSeconds * 1000);
+function toDatetimeLocal(ms: number): string {
+  const d = new Date(ms);
   const pad = (n: number) => String(n).padStart(2, '0');
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }

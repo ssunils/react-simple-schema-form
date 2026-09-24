@@ -15,8 +15,16 @@
       .epoch-widget__raw { font-size: 0.8rem; opacity: 0.7; }
       .inline-address__row { display: grid; grid-template-columns: 2fr 1fr 1fr; gap: 0.5rem; }
       .time-range { display: flex; align-items: center; gap: 0.4rem; }
-      .scheduler { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
-      .scheduler__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem 1rem; width: 100%; padding: 0.75rem; border-left: 3px solid #2563eb33; }
+      .scheduler { display: flex; flex-direction: column; gap: 0.75rem; align-items: stretch; }
+      .scheduler__modes { display: inline-flex; border: 1px solid #cbd5e1; border-radius: 6px; overflow: hidden; align-self: flex-start; }
+      .scheduler__mode { padding: 0.4rem 0.9rem; cursor: pointer; display: flex; gap: 0.4rem; align-items: center; }
+      .scheduler__mode + .scheduler__mode { border-left: 1px solid #cbd5e1; }
+      .scheduler__mode--active { background: #2563eb; color: #fff; }
+      .scheduler__mode input { position: absolute; opacity: 0; width: 0; height: 0; }
+      .scheduler__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem 1rem; }
+      .scheduler__window { margin: 0; }
+      .toggle-section { display: flex; flex-direction: column; gap: 0.75rem; align-items: flex-start; }
+      .toggle-section__grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 0.75rem 1rem; width: 100%; padding: 0.75rem; border-left: 3px solid #2563eb33; }
       .counter { display: flex; gap: 0.35rem; align-items: center; }
       .counter .sf-input { width: 6rem; }
       .inline-address__summary { margin: 0.25rem 0 0; font-size: 0.85rem; color: #dc2626; }

@@ -41,85 +41,10 @@
       "minimum": 0,
       "title": "Age"
     },
-    "schedule": {
-      "title": "Weekly schedule",
-      "type": "object",
-      "ui:widget": "scheduler",
-      "uiSchema": {
-        "monday": {
-          "ui:widget": "timePicker"
-        },
-        "tuesday": {
-          "ui:widget": "timePicker"
-        },
-        "wednesday": {
-          "ui:widget": "timePicker"
-        },
-        "thursday": {
-          "ui:widget": "timePicker"
-        },
-        "friday": {
-          "ui:widget": "timePicker"
-        }
-      },
-      "properties": {
-        "enabled": {
-          "title": "Enable schedule",
-          "description": "Turn on to set working hours. Days are only validated while enabled.",
-          "type": "boolean",
-          "default": false
-        },
-        "monday": {
-          "title": "Monday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "tuesday": {
-          "title": "Tuesday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "wednesday": {
-          "title": "Wednesday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "thursday": {
-          "title": "Thursday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        },
-        "friday": {
-          "title": "Friday",
-          "type": "string",
-          "description": "Time range as HH:MM-HH:MM",
-          "pattern": "^([01]\\d|2[0-3]):[0-5]\\d-([01]\\d|2[0-3]):[0-5]\\d$"
-        }
-      },
-      "if": {
-        "properties": {
-          "enabled": {
-            "const": true
-          }
-        },
-        "required": [
-          "enabled"
-        ]
-      },
-      "then": {
-        "required": [
-          "monday",
-          "tuesday"
-        ]
-      }
-    },
     "bio": {
       "type": "string",
-      "title": "Bio"
+      "title": "Bio",
+      "ui:widget": "textarea"
     },
     "role": {
       "type": "string",
@@ -133,6 +58,93 @@
     "address": {
       "$ref": "#/definitions/address",
       "title": "Address"
+    },
+    "schedule": {
+      "title": "Schedule",
+      "type": "object",
+      "ui:widget": "scheduler",
+      "uiSchema": {
+        "maxRuns": {
+          "ui:widget": "counter"
+        },
+        "runAt": {
+          "ui:widget": "epoch"
+        },
+        "startsAt": {
+          "ui:widget": "epoch"
+        },
+        "endsAt": {
+          "ui:widget": "epoch"
+        }
+      },
+      "properties": {
+        "enabled": {
+          "title": "Enable schedule",
+          "type": "boolean",
+          "default": false
+        },
+        "runAt": {
+          "title": "Run at",
+          "description": "Unix timestamp (ms) for a single delayed run",
+          "type": "integer"
+        },
+        "intervalMs": {
+          "title": "Repeat every",
+          "description": "Interval between repeated runs, in milliseconds",
+          "type": "integer",
+          "minimum": 1000
+        },
+        "runImmediately": {
+          "title": "Run immediately",
+          "description": "Run once as soon as the schedule is saved, then repeat",
+          "type": "boolean"
+        },
+        "maxRuns": {
+          "title": "Max runs",
+          "description": "Stop after this many runs",
+          "type": "integer",
+          "minimum": 1
+        },
+        "startsAt": {
+          "title": "Not before",
+          "description": "Unix timestamp (ms) before which the task will not run",
+          "type": "integer"
+        },
+        "endsAt": {
+          "title": "Not after",
+          "description": "Unix timestamp (ms) after which the task will no longer run",
+          "type": "integer"
+        },
+        "continueOnError": {
+          "title": "Continue on error",
+          "description": "Keep the schedule running after a failed run",
+          "type": "boolean"
+        }
+      },
+      "if": {
+        "properties": {
+          "enabled": {
+            "const": true
+          }
+        },
+        "required": [
+          "enabled"
+        ]
+      },
+      "then": {
+        "oneOf": [
+          {
+            "required": [
+              "runAt"
+            ]
+          },
+          {
+            "required": [
+              "intervalMs"
+            ]
+          }
+        ]
+      }
     }
   },
   "required": [

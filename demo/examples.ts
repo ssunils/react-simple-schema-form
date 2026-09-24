@@ -21,10 +21,7 @@ export const examples: Example[] = [
   {
     name: 'Basic (schema.json)',
     schema: asSchema(basic),
-    uiSchema: {
-      bio: { widget: 'textarea', placeholder: 'A few words about yourself' },
-      role: { help: 'Admins can manage other users.' },
-    },
+    uiSchema: {},
   },
   { name: '$ref & definitions', schema: asSchema(refDefinitions), uiSchema: {} },
   { name: 'allOf', schema: asSchema(allOf), uiSchema: {} },

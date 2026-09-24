@@ -29,7 +29,10 @@ export function Field({ schema: rawSchema, path, required, label }: FieldProps) 
   const schema = resolveSchema(rawSchema, value, resolveOptions(ctx.rootSchema));
   const options = getUiOptions(schema, path, ctx.uiSchema);
   const type = resolveType(schema);
-  const combinator = combinatorBranches(schema);
+  // A combinator whose branches are only constraints (e.g. anyOf of `required`)
+  // is a validation rule, not a choice: render the node as usual.
+  const rawCombinator = combinatorBranches(schema);
+  const combinator = rawCombinator && !rawCombinator.validationOnly ? rawCombinator : null;
   const isEnumArray = type === 'array' && Boolean(schema.items?.enum);
 
   // Widget selection, highest precedence first:

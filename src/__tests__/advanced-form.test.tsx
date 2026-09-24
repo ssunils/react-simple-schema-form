@@ -111,6 +111,29 @@ describe('SchemaForm with dependencies', () => {
   });
 });
 
+describe('validate prop (cross-field rules)', () => {
+  it('appends custom errors, shows them under their path, and blocks submit', async () => {
+    const user = userEvent.setup();
+    const onSubmit = vi.fn();
+    const onError = vi.fn();
+    const s: JSONSchema = { type: 'object', properties: { from: { type: 'integer', title: 'From' }, to: { type: 'integer', title: 'To' } } };
+    const validate = (d: Record<string, unknown>) =>
+      typeof d.from === 'number' && typeof d.to === 'number' && d.to < d.from ? [{ path: 'to', keyword: 'order', message: 'Must be at least From' }] : [];
+    render(<SchemaForm schema={s} validate={validate} onSubmit={onSubmit} onError={onError} />);
+    await user.type(screen.getByLabelText(/^From/), '5');
+    await user.type(screen.getByLabelText(/^To/), '3');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(onSubmit).not.toHaveBeenCalled();
+    expect(onError).toHaveBeenCalledWith([{ path: 'to', keyword: 'order', message: 'Must be at least From' }]);
+    expect(screen.getByRole('alert')).toHaveTextContent('Must be at least From');
+    expect(screen.getByLabelText(/^To/)).toHaveFocus();
+    await user.clear(screen.getByLabelText(/^To/));
+    await user.type(screen.getByLabelText(/^To/), '9');
+    await user.click(screen.getByRole('button', { name: 'Submit' }));
+    expect(onSubmit).toHaveBeenCalledWith({ from: 5, to: 9 });
+  });
+});
+
 describe('inline ui:* hints and custom widgets', () => {
   const Epoch: Widget<number | undefined> = ({ id, value, onChange, options }) => (
     <input id={id} data-testid="epoch" data-help={options.help} value={value ?? ''} onChange={(e) => onChange(Number(e.target.value))} />

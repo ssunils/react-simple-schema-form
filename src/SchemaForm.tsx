@@ -19,6 +19,12 @@ export interface SchemaFormProps<T = Record<string, unknown>> {
   onSubmit?: (data: T) => void;
   /** Called on submit when the data has validation errors. */
   onError?: (errors: FieldError[]) => void;
+  /**
+   * Extra validation the schema cannot express (cross-field rules such as
+   * "end must be after start"). Runs after schema validation on every change;
+   * returned errors are shown under their `path` and block submission.
+   */
+  validate?: (data: T, schemaErrors: FieldError[]) => FieldError[];
   /** Extra or replacement widgets, merged over the defaults. */
   widgets?: WidgetRegistry;
   /**
@@ -64,6 +70,7 @@ export function SchemaForm<T = Record<string, unknown>>({
   onChange,
   onSubmit,
   onError,
+  validate: customValidate,
   widgets,
   resolveWidget,
   disabled = false,
@@ -83,7 +90,14 @@ export function SchemaForm<T = Record<string, unknown>>({
   const [submitted, setSubmitted] = useState(false);
   const idPrefix = useRef(id ?? `sf${++formCounter}`).current;
 
-  const errors = useMemo(() => validate(schema, data), [schema, data]);
+  const runValidation = useCallback(
+    (candidate: T) => {
+      const schemaErrors = validate(schema, candidate);
+      return customValidate ? [...schemaErrors, ...customValidate(candidate, schemaErrors)] : schemaErrors;
+    },
+    [schema, customValidate],
+  );
+  const errors = useMemo(() => runValidation(data), [runValidation, data]);
   const errorMap = useMemo(() => errorsByPath(errors), [errors]);
   const mergedWidgets = useMemo(() => ({ ...defaultWidgets, ...widgets }), [widgets]);
 
@@ -97,9 +111,9 @@ export function SchemaForm<T = Record<string, unknown>>({
     (path: FieldPath, fieldValue: unknown) => {
       const next = setAtPath(data, path, fieldValue);
       if (!isControlled) setInternal(next);
-      onChangeRef.current?.(next, validate(schema, next));
+      onChangeRef.current?.(next, runValidation(next));
     },
-    [data, isControlled, schema],
+    [data, isControlled, runValidation],
   );
 
   const touch = useCallback((path: FieldPath) => {

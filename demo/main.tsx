@@ -4,12 +4,13 @@ import { SchemaForm, type FieldError, type JSONSchema, type ResolveWidget, type 
 import 'react-simple-schema-form/styles.css';
 import { examples } from './examples';
 import { demoWidgets as widgets } from './widgets';
+import { schedulerRules } from './rules';
 
 // Rule-based selection: runs after uiSchema and inline ui:widget, before defaults.
 // Lets schemas stay free of UI keywords (or use their own, like `x-widget`).
 const resolveWidget: ResolveWidget = ({ schema }) => {
   if (typeof schema['x-widget'] === 'string') return schema['x-widget'];
-  if (schema.format === 'epoch') return 'epoch';
+  if (schema.format === 'epoch' || schema.format === 'epoch-ms') return 'epoch';
   return undefined;
 };
 
@@ -82,6 +83,7 @@ function App() {
             uiSchema={uiSchema.value}
             widgets={widgets}
             resolveWidget={resolveWidget}
+            validate={schedulerRules}
             onChange={(next, errs) => {
               setData(next);
               setErrors(errs);

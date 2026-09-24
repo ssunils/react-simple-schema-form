@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveSchema, resolveRef, mergeSchemas, getUiOptions } from '../resolve';
+import { resolveSchema, resolveRef, mergeSchemas, getUiOptions, combinatorBranches } from '../resolve';
 import { validate, resolveOptions } from '../validate';
 import { getDefaultFormData } from '../utils/schema';
 import type { JSONSchema } from '../types';
@@ -103,6 +103,31 @@ describe('oneOf / anyOf', () => {
   it('seeds defaults from the first branch, including discriminator consts', () => {
     expect(getDefaultFormData(payment, undefined, oneOf)).toEqual({ method: 'card' });
     expect(getDefaultFormData(payment, { method: 'invoice' }, oneOf)).toEqual({ method: 'invoice' });
+  });
+});
+
+describe('validation-only combinators', () => {
+  const s: JSONSchema = {
+    type: 'object',
+    properties: { a: { type: 'string', title: 'A' }, b: { type: 'integer', title: 'B', minimum: 1 } },
+    anyOf: [{ required: ['a'] }, { required: ['b'] }],
+  };
+
+  it('anyOf of required reports one readable error naming the choices', () => {
+    expect(validate(s, {})).toEqual([{ path: '', keyword: 'anyOf', message: 'Provide at least one of: A, B' }]);
+    expect(validate(s, { a: 'x' })).toEqual([]);
+    expect(validate(s, { b: 0 }).map((e) => e.keyword)).toEqual(['minimum']);
+  });
+
+  it('oneOf of required says exactly one', () => {
+    const one: JSONSchema = { ...s, anyOf: undefined, oneOf: s.anyOf };
+    expect(validate(one, {}).map((e) => e.message)).toEqual(['Provide exactly one of: A, B']);
+    expect(validate(one, { a: 'x', b: 2 }).map((e) => e.message)).toEqual(['Choose only one of: A, B']);
+  });
+
+  it('is flagged validationOnly so the form renders no branch selector', () => {
+    expect(combinatorBranches(s)?.validationOnly).toBe(true);
+    expect(combinatorBranches({ anyOf: [{ type: 'string' }, { required: ['x'] }] })?.validationOnly).toBe(false);
   });
 });
 
