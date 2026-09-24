@@ -58,11 +58,11 @@ describe('SchemaForm', () => {
       setTime(/^Run at/, '2026-01-15T09:30');
       expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ schedule: expect.objectContaining({ runAt: ms('2026-01-15T09:30') }) }), expect.any(Array));
 
-      // Switch to repeat: run_at_ts is dropped, so the two modes can never overlap
+      // Switch to repeat: runAt is dropped, so the two modes can never overlap
       await user.click(screen.getByRole('radio', { name: 'Repeat' }));
       expect(screen.queryByLabelText(/^Run at/)).toBeNull();
       expect(screen.getByLabelText(/^Repeat every/)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Increase' })).toBeInTheDocument(); // counter for max_runs
+      expect(screen.getByRole('button', { name: 'Increase' })).toBeInTheDocument(); // counter for maxRuns
       const last = onChange.mock.calls[onChange.mock.calls.length - 1]![0].schedule;
       expect(last).toEqual({ enabled: true });
     });
